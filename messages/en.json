@@ -1,0 +1,407 @@
+{
+  "brand": "PoMerka",
+  "decorLabel": "{code} · {name}",
+  "units": {
+    "cmValue": "{value} cm",
+    "mmValue": "{value} mm",
+    "mValue": "{value} m"
+  },
+  "materials": {
+    "hdf": "HDF board"
+  },
+  "meta": {
+    "title": "Made-to-measure furniture configurator | PoMerka",
+    "description": "Design furniture to your own measurements: live 3D view, cut list, sheet layouts and price.",
+    "configurator": "{model} configurator | PoMerka"
+  },
+  "models": {
+    "sideboard": "Wall-hung sideboard",
+    "shelf": "Wall shelf unit"
+  },
+  "home": {
+    "title": "Furniture made to your measurements",
+    "subtitle": "Pick a model, set the size, and get the cut list, sheet layouts and price straight away.",
+    "configure": "Configure",
+    "sideboardDesc": "Doors, drawers or open elements, 60–278 cm wide.",
+    "shelfDesc": "Open shelving for the wall, 60–278 cm wide.",
+    "notFound": "This page does not exist.",
+    "backHome": "Back to the models"
+  },
+  "header": {
+    "view": "Settings or results",
+    "settings": "Settings",
+    "results": "Results",
+    "undo": "Undo",
+    "redo": "Redo",
+    "undoHint": "Undo the last change (Ctrl+Z)",
+    "redoHint": "Redo (Ctrl+Shift+Z)",
+    "save": "Save",
+    "share": "Copy link",
+    "linkCopied": "Link copied",
+    "unit": "Unit of length",
+    "languages": {
+      "mk": "Македонски",
+      "en": "English"
+    }
+  },
+  "save": {
+    "title": "Saved designs",
+    "close": "Close",
+    "help": "Designs are stored in this browser. To move one to another device, use Copy link.",
+    "placeholder": "e.g. Living room sideboard",
+    "name": "Name of the design",
+    "save": "Save",
+    "empty": "Nothing saved for this model yet.",
+    "remove": "Delete {name}"
+  },
+  "notices": {
+    "shelvesReduced": "The new height fits at most {max, plural, =0 {no shelves} one {# shelf} other {# shelves}} per element, so shelves were reduced.",
+    "drawersReduced": "The new height fits at most {max, plural, one {# drawer} other {# drawers}} per element, so drawers were reduced.",
+    "doubleDoorsRemoved": "Elements narrower than {min} were changed to a single door.",
+    "restoredDefaults": "That link could not be opened, so the default design is shown.",
+    "undo": "Undo",
+    "dismiss": "Dismiss"
+  },
+  "field": {
+    "decrease": "Decrease {field}",
+    "increase": "Increase {field}",
+    "slider": "{field} slider",
+    "stepHint": "1 mm per click; hold Shift for 10 mm",
+    "useNearest": "Use {value}"
+  },
+  "issues": {
+    "range": "{field} must be between {min} and {max}.",
+    "sheetLimit": "The top is cut from one board, so the width cannot exceed {max}. For a wider piece, place two side by side.",
+    "widthForElements": "With {count, plural, one {# element} other {# elements}} the width must be between {min} and {max}. Remove an element to go narrower.",
+    "elementMin": "Each element must be at least {min} wide, so this one can be between {min} and {max}.",
+    "elementCount": "This width fits between {min} and {max} elements.",
+    "shelvesMax": "At this height an element fits at most {max, plural, =0 {no shelves} one {# shelf} other {# shelves}} (shelves need {spacing} between them).",
+    "drawersMax": "At this height an element fits at most {max, plural, one {# drawer} other {# drawers}} (each front needs {min}).",
+    "doubleDoorMin": "Double doors need an element at least {min} wide.",
+    "drawersDepth": "Drawers need a depth between {min} and {max}.",
+    "invalid": "Enter a number."
+  },
+  "steps": {
+    "title": "Settings",
+    "expandAll": "Open all",
+    "collapseAll": "Close all",
+    "stepN": "Step {n}:",
+    "needsAttention": "Needs attention",
+    "dimensions": {
+      "title": "Dimensions",
+      "help": "Outer measurements. Depth is the total depth, including the back panel and the doors or drawer fronts.",
+      "summary": "{w} × {h} × {d}",
+      "width": "Width",
+      "height": "Height",
+      "depth": "Depth"
+    },
+    "elements": {
+      "title": "Elements",
+      "help": "How many compartments the piece has and how wide each one is. The widths always add up to the total width.",
+      "summary": "{count, plural, one {# element} other {# elements}} · {widths}",
+      "count": "Number of elements",
+      "maxNote": "This width fits up to {max, plural, one {# element} other {# elements}}; each must be at least {min} wide.",
+      "widthOf": "Width of element {n}",
+      "equalise": "Equalise widths"
+    },
+    "fronts": {
+      "title": "Fronts and shelves",
+      "help": "For each element: doors, drawers or open, and the number of shelves.",
+      "summary": "{closed} of {total, plural, one {# element} other {# elements}} closed",
+      "maxShelves": "At this height each element fits up to {max, plural, =0 {no shelves} one {# shelf} other {# shelves}}, at least {spacing} apart.",
+      "drawersUnavailable": "Drawers need a total depth of at least {min}. Increase the depth to enable them.",
+      "element": "Element {n} · {width}",
+      "front": "Front",
+      "doors": "Doors",
+      "open": "Open",
+      "drawers": "Drawers",
+      "shelves": "Shelves",
+      "spacing": "Space between shelves: {value}",
+      "doorType": "Door type",
+      "single": "Single door",
+      "double": "Double doors",
+      "doubleUnavailable": "Double doors need an element at least {min} wide.",
+      "opening": "Door opening",
+      "openings": {
+        "auto": "Automatic",
+        "left": "Left",
+        "right": "Right",
+        "bottom": "Bottom (flap)"
+      },
+      "autoResult": "Hinged automatically: {side}",
+      "drawerCount": "Drawers",
+      "drawerFront": "Front height about {value}; up to {max} drawers fit this height."
+    },
+    "colours": {
+      "title": "Colours",
+      "help": "Choose the decor of the body and of the fronts separately.",
+      "summary": "{body} / {front}",
+      "body": "Body decor",
+      "front": "Front decor",
+      "search": "Search by code or name",
+      "searchFor": "Search: {slot}",
+      "category": "Decor category",
+      "categoryCount": "{name} ({count})",
+      "categories": {
+        "wood": "Wood",
+        "material": "Materials",
+        "solid": "Solid and white",
+        "matt": "Matt"
+      },
+      "none": "No decor matches the search.",
+      "showMore": "Show {count} more",
+      "selected": "{slot}: {name}",
+      "copied": "Copied",
+      "copyCode": "Copy code {code}",
+      "disclaimer": "Colours on screen are indicative. Check the real decor on a sample before ordering."
+    },
+    "details": {
+      "title": "Details",
+      "help": "Back panel, top and how the fronts open.",
+      "summaryBack": "With back panel",
+      "summaryNoBack": "No back panel",
+      "handles": "Handles",
+      "push": "Push to open",
+      "back": "Back panel (HDF)",
+      "backHelp": "Closes the back of the body and adds a 3 mm HDF panel per element to the cut list.",
+      "doubleTop": "Double top (36 mm)",
+      "doubleTopHelp": "The top is two boards glued together. The total height stays the same; the body below is one board lower.",
+      "opening": "Opening",
+      "handlesHelp": "Fronts are opened with a handle.",
+      "pushHelp": "Fronts open with a light push; no handles.",
+      "handleShape": "Handle shape",
+      "handleFinish": "Handle colour",
+      "shapes": {
+        "bar128": "Short bar, 128 mm",
+        "bar320": "Long bar, 320 mm",
+        "longBar": "Tall bar, half the door height",
+        "knob": "Round knob",
+        "shell": "Recessed shell",
+        "edge": "Profile along the top edge",
+        "topPull": "Pull on the top edge"
+      },
+      "finishes": {
+        "grey": "Grey",
+        "black": "Black",
+        "gold": "Gold",
+        "white": "White",
+        "brown": "Brown"
+      }
+    }
+  },
+  "summary": {
+    "title": "Summary",
+    "intro": "This is what goes into the cut list.",
+    "width": "Width",
+    "height": "Height",
+    "depth": "Depth",
+    "elements": "Elements",
+    "fronts": "Fronts",
+    "back": "Back panel",
+    "included": "Included",
+    "none": "None",
+    "top": "Top",
+    "topDouble": "Double, 36 mm",
+    "topSingle": "Single, 18 mm",
+    "opening": "Opening",
+    "handle": "Handle",
+    "handleValue": "{shape}, {finish}",
+    "elementLine": "Element {n}: {width}, {front}{shelves, plural, =0 {} one {, # shelf} other {, # shelves}}",
+    "withDrawers": "{count, plural, one {# drawer} other {# drawers}}",
+    "withDoubleDoors": "double doors",
+    "withDoor": "door",
+    "openFront": "open",
+    "livePrice": "Indicative price",
+    "liveSheets": "{parts, plural, one {# part} other {# parts}} · {sheets, plural, one {# sheet} other {# sheets}}",
+    "generate": "Generate cut list",
+    "fixFirst": "Fix these fields first:",
+    "generateHelp": "The cut list, sheet layouts and price follow the current settings and update as you change them."
+  },
+  "viewer": {
+    "loading": "Loading 3D view…",
+    "unsupported": "The 3D view is not available in this browser. The settings, cut list and price still work.",
+    "aria": "3D view of the {model}. Drag or use the arrow keys to rotate, scroll or pinch to zoom.",
+    "ariaPiece": "piece",
+    "openFronts": "Open fronts",
+    "closeFronts": "Close fronts",
+    "exploded": "Exploded view",
+    "dimensions": "Dimensions",
+    "reset": "Reset view",
+    "selected": "{name} · {length} × {width}",
+    "hint": "Drag to rotate. Click a part to find it in the cut list."
+  },
+  "parts": {
+    "top": "Top",
+    "bottom": "Bottom",
+    "side": "Side",
+    "rail": "Top rail",
+    "shelf": "Shelf",
+    "back": "Back panel",
+    "door": "Door",
+    "drawerFront": "Drawer front",
+    "drawerSide": "Drawer side",
+    "drawerInner": "Drawer box front/back",
+    "drawerBottom": "Drawer bottom"
+  },
+  "hardware": {
+    "handleDetail": "Handle: {shape}, {finish}",
+    "drawerSlideDetail": "Drawer slides, {length}",
+    "items": {
+      "hinge": "Door hinge with mounting plate",
+      "flapStay": "Flap stay",
+      "handle": "Handle",
+      "pushLatch": "Push-to-open latch",
+      "shelfPin": "Shelf pin",
+      "wallBracket": "Wall-hanging bracket",
+      "drawerSlide": "Drawer slides",
+      "screw3516": "Screw 3.5 × 16 (hinges, slides)",
+      "screw430": "Screw 4 × 30 (top, brackets)",
+      "screw450": "Carcass screw 4 × 50",
+      "screwCap": "Screw cap in body colour",
+      "handleScrew": "Handle screw M4",
+      "backNail": "Nail for HDF 1.4 × 20",
+      "wallPlug": "Wall plug with screw"
+    }
+  },
+  "results": {
+    "title": "Results",
+    "summaryLine": "{parts, plural, one {# part} other {# parts}} · {sheets, plural, one {# sheet} other {# sheets}} · {used} of sheet area used · about {price}",
+    "backToSettings": "Back to settings",
+    "stockName": "{name}, {thickness}",
+    "units": {
+      "sheet": "{count, plural, one {# sheet} other {# sheets}}",
+      "pcs": "{count} pcs",
+      "pair": "{count, plural, one {# pair} other {# pairs}}",
+      "m": "{count} m"
+    },
+    "tabs": {
+      "parts": "Cut list",
+      "sheets": "Sheets",
+      "price": "Price",
+      "hardware": "Hardware"
+    },
+    "export": {
+      "pdf": "Download PDF",
+      "csv": "Download CSV",
+      "copyTable": "Copy table",
+      "copied": "Copied",
+      "print": "Print",
+      "link": "Copy link",
+      "preparing": "Preparing PDF…"
+    },
+    "parts": {
+      "hint": "Click a row to highlight the part on the model; click a part on the model to find its row.",
+      "lengthNote": "Length runs along the grain of the decor. Sizes are the finished sizes of the parts.",
+      "bandAll": "all four edges",
+      "bandLong": "{count, plural, one {one long edge} other {both long edges}}",
+      "bandShort": "{count, plural, one {one short edge} other {both short edges}}",
+      "noteHinges": "{count} hinge holes Ø35 on the hinge edge",
+      "noteGrain": "grain along the length",
+      "cols": {
+        "no": "No.",
+        "part": "Part",
+        "qty": "Qty",
+        "length": "Length",
+        "width": "Width",
+        "thickness": "Thickness",
+        "material": "Material",
+        "banding": "Edge banding",
+        "note": "Note",
+        "grain": "Grain"
+      },
+      "csv": {
+        "l1": "Band long edge 1",
+        "l2": "Band long edge 2",
+        "w1": "Band short edge 1",
+        "w2": "Band short edge 2",
+        "banding": "Banding (m)",
+        "yes": "yes",
+        "no": "no"
+      }
+    },
+    "sheets": {
+      "note": "Guillotine layouts: every cut runs edge to edge. Saw kerf {kerf}, {trim} trimmed from each sheet edge. Numbers match the cut list.",
+      "stock": "{name} — {count, plural, one {# sheet} other {# sheets}} of {size} mm",
+      "grain": "Grain runs along the sheet length (arrow); these parts are not rotated.",
+      "caption": "Sheet {n}: {used} used, {parts, plural, one {# part} other {# parts}}",
+      "aria": "Layout of sheet {n} with {parts, plural, one {# part} other {# parts}}",
+      "dims": "{w} × {h}"
+    },
+    "price": {
+      "banding": "Edge banding, applied",
+      "cutting": "Cutting",
+      "cols": {
+        "item": "Item",
+        "qty": "Quantity",
+        "unitPrice": "Unit price",
+        "total": "Total"
+      },
+      "used": "{used} of the sheet area used",
+      "total": "Total",
+      "waste": "Of the board cost, about {used} ends up in the piece and {waste} is offcuts. Whole sheets are charged.",
+      "ownTitle": "Your own prices",
+      "ownHelp": "Checked prices with a workshop? Enter them and recalculate.",
+      "ownSheet": "Sheet price: {name}",
+      "ownBanding": "Edge banding per metre",
+      "ownCutting": "Cutting per metre",
+      "ownApply": "Recalculate",
+      "ownReset": "Use our prices",
+      "disclaimer": "Indicative price in Macedonian denars. Delivery and assembly are not included. The final price is confirmed by the workshop."
+    },
+    "hardware": {
+      "note": "Quantities follow the parts list. Screws, caps, nails and plugs include a 10 % reserve.",
+      "item": "Item",
+      "qty": "Quantity"
+    },
+    "inquiry": {
+      "title": "Send an inquiry",
+      "help": "We receive your design link with the request and reply with a firm offer.",
+      "name": "Name",
+      "contact": "Email or phone",
+      "message": "Message (optional)",
+      "send": "Send inquiry",
+      "sending": "Sending…",
+      "sent": "Thank you. Your inquiry and design have been received; we will be in touch.",
+      "error": "The inquiry could not be sent. Please try again."
+    },
+    "pdf": {
+      "title": "{model} — cut list",
+      "body": "Body decor",
+      "front": "Front decor",
+      "date": "Date",
+      "link": "Open this design again:"
+    }
+  },
+  "decors": {
+    "w01": "Natural oak",
+    "w02": "Honey oak",
+    "w03": "Walnut",
+    "w04": "Light ash",
+    "w05": "Dark walnut",
+    "w06": "Cherry",
+    "w07": "Bleached oak",
+    "w08": "Wenge",
+    "w09": "Golden beech",
+    "w10": "Smoked oak",
+    "m01": "Light concrete",
+    "m02": "Limestone",
+    "m03": "Graphite slate",
+    "m04": "Sandstone",
+    "m05": "Aged bronze",
+    "m06": "White marble",
+    "s01": "Snow white",
+    "s02": "Cream",
+    "s03": "Sand beige",
+    "s04": "Light grey",
+    "s05": "Stone grey",
+    "s06": "Anthracite",
+    "s07": "Black",
+    "s08": "Sage green",
+    "x01": "Matt white",
+    "x02": "Matt black",
+    "x03": "Matt forest green",
+    "x04": "Matt night blue",
+    "x05": "Matt terracotta",
+    "x06": "Matt cashmere"
+  }
+}

@@ -55,25 +55,37 @@ export function buildHardware(config: Config, parts: Part[]): HardwareItem[] {
   return items;
 }
 
+/** Customer-entered prices that replace the catalogue ones (after checking with a workshop). */
+export interface PriceOverrides {
+  sheet?: Record<string, number>;
+  bandingPerM?: number;
+  cuttingPerM?: number;
+}
+
 /** Price as line items. The total is defined as the sum of the lines, so the two can never drift apart. */
-export function buildPrice(parts: Part[], nested: NestResult, hardware: HardwareItem[]): { price: Price; bandingMeters: number } {
+export function buildPrice(parts: Part[], nested: NestResult, hardware: HardwareItem[], overrides: PriceOverrides = {}): { price: Price; bandingMeters: number } {
   const lines: PriceLine[] = [];
+  const bandingRate = overrides.bandingPerM ?? RATES.bandingPerM;
+  const cuttingRate = overrides.cuttingPerM ?? RATES.cuttingPerM;
   for (const stock of nested.stocks) {
-    const qty = nested.sheets.filter((s) => s.stockKey === stock.key).length;
+    const sheets = nested.sheets.filter((s) => s.stockKey === stock.key);
+    const qty = sheets.length;
+    const unitPrice = overrides.sheet?.[stock.key] ?? stock.price;
+    const used = sheets.reduce((s, x) => s + x.utilisation, 0) / Math.max(1, qty);
     lines.push({
       key: `sheet:${stock.key}`,
       kind: 'sheet',
       qty,
       unit: 'sheet',
-      unitPrice: stock.price,
-      total: qty * stock.price,
-      detail: { material: stock.material, thickness: stock.thickness, decor: stock.decor ?? '' },
+      unitPrice,
+      total: qty * unitPrice,
+      detail: { material: stock.material, thickness: stock.thickness, decor: stock.decor ?? '', utilisation: Math.round(used * 100) },
     });
   }
   const bandingMeters = Math.round(parts.reduce((s, x) => s + bandingLength(x), 0) / 10) / 100;
-  lines.push({ key: 'banding', kind: 'banding', qty: bandingMeters, unit: 'm', unitPrice: RATES.bandingPerM, total: Math.round(bandingMeters * RATES.bandingPerM) });
+  lines.push({ key: 'banding', kind: 'banding', qty: bandingMeters, unit: 'm', unitPrice: bandingRate, total: Math.round(bandingMeters * bandingRate) });
   const cutMeters = Math.round(nested.cutLength / 10) / 100;
-  lines.push({ key: 'cutting', kind: 'cutting', qty: cutMeters, unit: 'm', unitPrice: RATES.cuttingPerM, total: Math.round(cutMeters * RATES.cuttingPerM) });
+  lines.push({ key: 'cutting', kind: 'cutting', qty: cutMeters, unit: 'm', unitPrice: cuttingRate, total: Math.round(cutMeters * cuttingRate) });
   for (const item of hardware) {
     lines.push({
       key: `hardware:${item.key}`,
@@ -89,12 +101,12 @@ export function buildPrice(parts: Part[], nested: NestResult, hardware: Hardware
 }
 
 /** The single derivation chain. Everything the UI shows comes from one call. */
-export function derive(config: Config): Derived {
+export function derive(config: Config, overrides: PriceOverrides = {}): Derived {
   const parts = buildParts(config);
   const handles = buildHandles(config, parts);
   const cutList = buildCutList(parts);
   const nested = nest(parts);
   const hardware = buildHardware(config, parts);
-  const { price, bandingMeters } = buildPrice(parts, nested, hardware);
+  const { price, bandingMeters } = buildPrice(parts, nested, hardware, overrides);
   return { parts, handles, cutList, nest: nested, hardware, price, bandingMeters, sheetCount: nested.sheets.length };
 }

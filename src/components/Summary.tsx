@@ -1,0 +1,103 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { requireModel } from '@/engine/models';
+import { useFormat } from '@/lib/format';
+import { useConfigurator } from '@/store/configurator';
+
+/** Step 6: what goes into the cut list, the live price, and the button that opens the results. */
+export function Summary() {
+  const t = useTranslations('summary');
+  const ts = useTranslations('steps');
+  const f = useFormat();
+  const config = useConfigurator((s) => s.config);
+  const derived = useConfigurator((s) => s.derived);
+  const errors = useConfigurator((s) => s.errors);
+  const setTab = useConfigurator((s) => s.setTab);
+  const model = requireModel(config.model);
+  const closed = config.elements.filter((e) => e.front !== 'open').length;
+  const blocked = Object.values(errors);
+  const showHandles = model.features.handles && closed > 0;
+
+  const rows: [string, string][] = [
+    [t('width'), f.length(config.width)],
+    [t('height'), f.length(config.height)],
+    [t('depth'), f.length(config.depth)],
+    [t('elements'), String(config.elements.length)],
+    [t('fronts'), ts('fronts.summary', { closed, total: config.elements.length })],
+    [t('back'), config.back ? t('included') : t('none')],
+  ];
+  if (model.features.doubleTop) rows.push([t('top'), config.doubleTop ? t('topDouble') : t('topSingle')]);
+  if (showHandles) {
+    rows.push([t('opening'), ts(`details.${config.openingType}`)]);
+    if (config.openingType === 'handles') {
+      rows.push([t('handle'), t('handleValue', { shape: ts(`details.shapes.${config.handleShape}`), finish: ts(`details.finishes.${config.handleFinish}`) })]);
+    }
+  }
+
+  return (
+    <section className="grid gap-4 rounded-2xl border border-line bg-surface p-4" aria-labelledby="summary-title" data-testid="summary">
+      <div>
+        <h2 id="summary-title" className="text-xl font-semibold">
+          {t('title')}
+        </h2>
+        <p className="text-sm text-muted">{t('intro')}</p>
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-muted">{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <ul className="grid gap-1 border-t border-line pt-3 text-sm">
+        {config.elements.map((e, i) => (
+          <li key={i}>
+            {t('elementLine', {
+              n: i + 1,
+              width: f.length(e.width),
+              front: e.front === 'drawers' ? t('withDrawers', { count: e.drawers }) : e.front === 'doors' ? t(e.doors === 2 ? 'withDoubleDoors' : 'withDoor') : t('openFront'),
+              shelves: e.front === 'drawers' ? 0 : e.shelves,
+            })}
+          </li>
+        ))}
+      </ul>
+      <div className="grid gap-2 rounded-xl bg-accent-soft p-3" aria-live="polite">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm text-accent-strong">{t('livePrice')}</span>
+          <span className="text-2xl font-semibold tabular-nums" data-testid="live-price">
+            {f.money(derived.price.total)}
+          </span>
+        </div>
+        <p className="text-sm text-accent-strong" data-testid="live-sheets">
+          {t('liveSheets', { parts: derived.parts.length, sheets: derived.sheetCount })}
+        </p>
+      </div>
+      <button
+        type="button"
+        className="h-12 rounded-full bg-accent px-6 text-base font-semibold text-white transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={blocked.length > 0}
+        onClick={() => {
+          setTab('results');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        data-testid="generate"
+      >
+        {t('generate')}
+      </button>
+      {blocked.length > 0 ? (
+        <div role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
+          <p className="font-medium">{t('fixFirst')}</p>
+          <ul className="list-disc pl-5">
+            {blocked.map((issue) => (
+              <li key={issue.path}>{f.issueText(issue, issue.path in { width: 1, height: 1, depth: 1 } ? t(issue.path as 'width') : undefined)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-xs text-muted">{t('generateHelp')}</p>
+      )}
+    </section>
+  );
+}
