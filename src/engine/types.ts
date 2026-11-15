@@ -8,6 +8,8 @@ export type Hinge = 'left' | 'right' | 'bottom';
 export type OpeningType = 'handles' | 'push';
 export type HandleShape = 'bar128' | 'bar320' | 'longBar' | 'knob' | 'shell' | 'edge' | 'topPull';
 export type HandleFinish = 'grey' | 'black' | 'gold' | 'white' | 'brown';
+/** How the piece is supported: hung on the wall, standing on legs, or standing directly on the floor. */
+export type Mount = 'wall' | 'legs' | 'floor';
 
 export interface ElementConfig {
   width: number;
@@ -16,6 +18,8 @@ export interface ElementConfig {
   doors: 1 | 2;
   opening: Opening;
   drawers: number;
+  /** Hanging rail for clothes (models that offer it). */
+  rail: boolean;
 }
 
 export interface Config {
@@ -31,6 +35,10 @@ export interface Config {
   openingType: OpeningType;
   handleShape: HandleShape;
   handleFinish: HandleFinish;
+  mount: Mount;
+  /** Leg height in mm; used when `mount` is `legs`. The total height includes the legs. */
+  legHeight: number;
+  legFinish: HandleFinish;
 }
 
 export type Role =
@@ -92,18 +100,29 @@ export interface HandlePlacement {
   size: Vec3;
 }
 
+/** Bought-in fittings that are drawn in the 3D view but are not sheet parts. */
+export interface Fitting {
+  id: string;
+  kind: 'leg' | 'rail';
+  element: number | null;
+  position: Vec3;
+  size: Vec3;
+}
+
 export interface Issue {
   code:
     | 'range'
     | 'widthForElements'
     | 'sheetLimit'
     | 'elementMin'
+    | 'elementMax'
     | 'elementsSum'
     | 'elementCount'
     | 'shelvesMax'
     | 'drawersMax'
     | 'doubleDoorMin'
     | 'drawersDepth'
+    | 'railSpace'
     | 'unsupported'
     | 'invalid';
   /** Dot path of the offending field, e.g. `width` or `elements.1.width`. */
@@ -112,7 +131,7 @@ export interface Issue {
 }
 
 export interface Notice {
-  code: 'shelvesReduced' | 'drawersReduced' | 'doubleDoorsRemoved' | 'restoredDefaults';
+  code: 'shelvesReduced' | 'drawersReduced' | 'doubleDoorsRemoved' | 'railRemoved' | 'restoredDefaults';
   params: Record<string, number | string>;
 }
 
@@ -201,6 +220,7 @@ export interface Price {
 export interface Derived {
   parts: Part[];
   handles: HandlePlacement[];
+  fittings: Fitting[];
   cutList: CutRow[];
   nest: NestResult;
   hardware: HardwareItem[];

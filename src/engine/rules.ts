@@ -10,6 +10,7 @@ const elementSchema = z.object({
   doors: z.union([z.literal(1), z.literal(2)]),
   opening: z.enum(['auto', 'left', 'right', 'bottom']),
   drawers: z.number().int().min(1),
+  rail: z.boolean(),
 });
 
 /** Structural schema: types and enums only. Range rules live in `validate`, because they depend on the model. */
@@ -26,11 +27,21 @@ export const configSchema = z.object({
   openingType: z.enum(['handles', 'push']),
   handleShape: z.enum(HANDLE_SHAPES as [string, ...string[]]),
   handleFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown']),
+  mount: z.enum(['wall', 'legs', 'floor']),
+  legHeight: z.number().int().min(0),
+  legFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown']),
 });
 
-/** Height available to the carcass: a double top takes one board thickness from it. */
-export function carcassZone(config: Pick<Config, 'height' | 'doubleTop'>, p: ModelParams): number {
-  return config.height - (config.doubleTop ? p.board : 0);
+type Zone = Pick<Config, 'height' | 'doubleTop' | 'mount' | 'legHeight'>;
+
+/** Height of the legs under the carcass (0 when hung or standing on the floor). */
+export function baseHeight(config: Pick<Config, 'mount' | 'legHeight'>): number {
+  return config.mount === 'legs' ? config.legHeight : 0;
+}
+
+/** Height available to the carcass: a double top and legs each take their share of the total height. */
+export function carcassZone(config: Zone, p: ModelParams): number {
+  return config.height - (config.doubleTop ? p.board : 0) - baseHeight(config);
 }
 
 export function carcassDepth(config: Pick<Config, 'depth' | 'back' | 'elements'>, p: ModelParams): number {
@@ -39,23 +50,43 @@ export function carcassDepth(config: Pick<Config, 'depth' | 'back' | 'elements'>
 }
 
 /** Largest shelf count that keeps every gap at or above the minimum spacing. */
-export function maxShelves(config: Pick<Config, 'height' | 'doubleTop'>, p: ModelParams): number {
+export function maxShelves(config: Zone, p: ModelParams): number {
   const inner = carcassZone(config, p) - 2 * p.board;
   return Math.max(0, Math.floor((inner - p.shelfSpacingMin) / (p.shelfSpacingMin + p.board)));
 }
 
-export function shelfSpacing(config: Pick<Config, 'height' | 'doubleTop'>, shelves: number, p: ModelParams): number {
+export function shelfSpacing(config: Zone, shelves: number, p: ModelParams): number {
   const inner = carcassZone(config, p) - 2 * p.board;
   return (inner - shelves * p.board) / (shelves + 1);
 }
 
-export function frontZone(config: Pick<Config, 'height' | 'doubleTop'>, p: ModelParams): number {
+/** A clothes rail needs hanging height under it and enough depth for hangers. */
+export function railFits(config: Zone & Pick<Config, 'depth'>, p: ModelParams): boolean {
+  return carcassZone(config, p) - 2 * p.board >= p.hangingSpace + 100 && config.depth >= p.railDepthMin;
+}
+
+/** Shelves that fit above a clothes rail while keeping the hanging space clear. */
+export function railMaxShelves(config: Zone, p: ModelParams): number {
+  const inner = carcassZone(config, p) - 2 * p.board;
+  return Math.max(0, Math.floor((inner - p.hangingSpace - 100) / (p.railShelfPitch + p.board)));
+}
+
+export function elementMaxShelves(config: Zone, el: Pick<ElementConfig, 'rail'>, p: ModelParams): number {
+  return el.rail ? railMaxShelves(config, p) : maxShelves(config, p);
+}
+
+export function frontZone(config: Zone, p: ModelParams): number {
   return carcassZone(config, p) - p.doorHeightReduction;
 }
 
-export function maxDrawers(config: Pick<Config, 'height' | 'doubleTop'>, p: ModelParams): number {
+export function maxDrawers(config: Zone, p: ModelParams): number {
   const zone = frontZone(config, p);
   return Math.max(0, Math.min(p.drawersMax, Math.floor((zone + p.drawerFrontGap) / (p.drawerFrontMin + p.drawerFrontGap))));
+}
+
+/** Smallest overall height at which a clothes rail fits. */
+export function railHeightMin(config: Pick<Config, 'doubleTop' | 'mount' | 'legHeight'>, p: ModelParams): number {
+  return p.hangingSpace + 100 + 2 * p.board + (config.doubleTop ? p.board : 0) + baseHeight(config);
 }
 
 /** Longest standard slide that fits the carcass, or null when none does. */
@@ -78,6 +109,7 @@ export interface Limits {
   maxShelves: number;
   maxDrawers: number;
   drawersAvailable: boolean;
+  railAvailable: boolean;
 }
 
 export function limits(config: Config, model: ModelDef): Limits {
@@ -85,15 +117,16 @@ export function limits(config: Config, model: ModelDef): Limits {
   const n = config.elements.length;
   const hasDrawers = config.elements.some((e) => e.front === 'drawers');
   return {
-    width: { min: Math.max(p.widthMin, n * p.elementMin), max: p.widthMax },
+    width: { min: Math.max(p.widthMin, n * p.elementMin), max: Math.min(p.widthMax, n * p.elementMax) },
     height: { min: p.heightMin, max: p.heightMax },
     depth: { min: hasDrawers ? Math.max(p.depthMin, drawerDepthMin(config, p)) : p.depthMin, max: p.depthMax },
-    elements: { min: p.elementsMin, max: Math.min(p.elementsMax, Math.floor(config.width / p.elementMin)) },
-    elementWidth: { min: p.elementMin, max: config.width - (n - 1) * p.elementMin },
+    elements: { min: Math.max(p.elementsMin, Math.ceil(config.width / p.elementMax)), max: Math.min(p.elementsMax, Math.floor(config.width / p.elementMin)) },
+    elementWidth: { min: p.elementMin, max: Math.min(p.elementMax, config.width - (n - 1) * p.elementMin) },
     maxShelves: maxShelves(config, p),
     maxDrawers: maxDrawers(config, p),
     drawersAvailable:
       model.fronts.includes('drawers') && config.depth >= drawerDepthMin(config, p) && maxDrawers(config, p) >= 1,
+    railAvailable: model.features.rail && railFits(config, p),
   };
 }
 
@@ -131,16 +164,25 @@ export function validate(input: unknown): Issue[] {
   if (sum !== config.width) out.push(issue('elementsSum', 'elements', { sum, width: config.width }));
 
   if (config.doubleTop && !model.features.doubleTop) out.push(issue('unsupported', 'doubleTop'));
+  if (!model.mounts.includes(config.mount)) out.push(issue('unsupported', 'mount'));
+  if (config.mount === 'legs' && !model.legHeights.includes(config.legHeight)) out.push(issue('unsupported', 'legHeight'));
 
-  const shelvesCap = maxShelves(config, p);
   const drawersCap = maxDrawers(config, p);
-  const elementMax = config.width - (n - 1) * p.elementMin;
+  const elementMax = Math.min(p.elementMax, config.width - (n - 1) * p.elementMin);
+  if (config.width <= p.widthMax && config.width > n * p.elementMax)
+    out.push(issue('range', 'width', { min: Math.max(p.widthMin, n * p.elementMin), max: n * p.elementMax }));
   config.elements.forEach((e, i) => {
     const at = `elements.${i}`;
     if (e.width < p.elementMin) out.push(issue('elementMin', `${at}.width`, { min: p.elementMin, max: elementMax }));
+    if (e.width > p.elementMax) out.push(issue('elementMax', `${at}.width`, { min: p.elementMin, max: p.elementMax }));
     if (!model.fronts.includes(e.front)) out.push(issue('unsupported', `${at}.front`));
+    const shelvesCap = elementMaxShelves(config, e, p);
     if (e.front !== 'drawers' && e.shelves > shelvesCap)
-      out.push(issue('shelvesMax', `${at}.shelves`, { max: shelvesCap, spacing: p.shelfSpacingMin }));
+      out.push(issue('shelvesMax', `${at}.shelves`, { max: shelvesCap, spacing: e.rail ? p.railShelfPitch : p.shelfSpacingMin }));
+    if (e.rail && e.front !== 'drawers') {
+      if (!model.features.rail) out.push(issue('unsupported', `${at}.rail`));
+      else if (!railFits(config, p)) out.push(issue('railSpace', `${at}.rail`, { height: railHeightMin(config, p), depth: p.railDepthMin }));
+    }
     if (e.front === 'doors' && e.doors === 2 && e.width < p.doubleDoorMin)
       out.push(issue('doubleDoorMin', `${at}.doors`, { min: p.doubleDoorMin }));
     if (e.front === 'drawers') {
@@ -161,16 +203,26 @@ export function validate(input: unknown): Issue[] {
 export function normalise(config: Config, model: ModelDef): { config: Config; notices: Notice[] } {
   const p = model.params;
   const notices: Notice[] = [];
-  const shelvesCap = maxShelves(config, p);
   const drawersCap = maxDrawers(config, p);
+  const canRail = model.features.rail && railFits(config, p);
+  let shelvesCap = maxShelves(config, p);
+  let railCut = false;
   let shelvesCut = false;
   let drawersCut = false;
   let doorsCut = false;
   const elements = config.elements.map((e): ElementConfig => {
     const next = { ...e };
-    if (next.shelves > shelvesCap) {
-      next.shelves = shelvesCap;
-      if (e.front !== 'drawers') shelvesCut = true;
+    if (next.rail && !canRail) {
+      next.rail = false;
+      if (e.front !== 'drawers') railCut = true;
+    }
+    const cap = elementMaxShelves(config, next, p);
+    if (next.shelves > cap) {
+      next.shelves = cap;
+      if (e.front !== 'drawers') {
+        shelvesCut = true;
+        shelvesCap = Math.min(shelvesCap, cap);
+      }
     }
     if (next.drawers > Math.max(1, drawersCap)) {
       next.drawers = Math.max(1, drawersCap);
@@ -182,6 +234,7 @@ export function normalise(config: Config, model: ModelDef): { config: Config; no
     }
     return next;
   });
+  if (railCut) notices.push({ code: 'railRemoved', params: {} });
   if (shelvesCut) notices.push({ code: 'shelvesReduced', params: { max: shelvesCap } });
   if (drawersCut) notices.push({ code: 'drawersReduced', params: { max: drawersCap } });
   if (doorsCut) notices.push({ code: 'doubleDoorsRemoved', params: { min: p.doubleDoorMin } });

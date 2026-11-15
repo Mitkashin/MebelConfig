@@ -1,7 +1,7 @@
 import { SHEET } from './catalog';
 import { requireModel, type ModelParams } from './models';
-import { carcassDepth, carcassZone, frontZone, slideLength } from './rules';
-import type { Axis, Config, DecorSlot, Edges, HandlePlacement, Hinge, Material, Part, Role, Vec3 } from './types';
+import { baseHeight, carcassDepth, carcassZone, frontZone, slideLength } from './rules';
+import type { Axis, Config, DecorSlot, Edges, Fitting, HandlePlacement, Hinge, Material, Part, Role, Vec3 } from './types';
 
 const NO_EDGES: Edges = { l1: false, l2: false, w1: false, w2: false };
 
@@ -79,6 +79,8 @@ export function buildParts(config: Config): Part[] {
   const cd = carcassDepth(config, p);
   const z0 = config.back ? p.back : 0;
   const zFront = z0 + cd + p.frontGap;
+  // Legs lift the whole carcass; the top stays at the overall height.
+  const base = baseHeight(config);
 
   // Top: one board, or two glued boards for a 36 mm top. Front and both ends are banded.
   const topEdges = { l2: true, w1: true, w2: true };
@@ -95,7 +97,7 @@ export function buildParts(config: Config): Part[] {
   const railWidth = Math.min(p.railWidth, Math.floor(cd / 2));
   const shelfDepth = cd - Math.min(p.shelfInset, Math.floor(cd / 2));
   const doorHeight = frontZone(config, p);
-  const doorY = Math.floor((zone - t - doorHeight) / 2);
+  const doorY = base + Math.floor((zone - t - doorHeight) / 2);
 
   config.elements.forEach((el, i) => {
     const cw = el.width - allowance;
@@ -105,27 +107,30 @@ export function buildParts(config: Config): Part[] {
       id: id('bottom'),
       role: 'bottom',
       element: i,
-      position: [x0, 0, z0],
+      position: [x0, base, z0],
       size: [cw, t, cd],
       lengthAxis: 0,
       edges: { l2: true, w1: i === 0, w2: i === n - 1 },
     });
-    add({ id: id('sideL'), role: 'side', element: i, position: [x0, t, z0], size: [t, sideHeight, cd], lengthAxis: 1, edges: { l2: true } });
-    add({ id: id('sideR'), role: 'side', element: i, position: [x0 + cw - t, t, z0], size: [t, sideHeight, cd], lengthAxis: 1, edges: { l2: true } });
+    add({ id: id('sideL'), role: 'side', element: i, position: [x0, base + t, z0], size: [t, sideHeight, cd], lengthAxis: 1, edges: { l2: true } });
+    add({ id: id('sideR'), role: 'side', element: i, position: [x0 + cw - t, base + t, z0], size: [t, sideHeight, cd], lengthAxis: 1, edges: { l2: true } });
 
-    const railY = zone - 2 * t;
+    const railY = base + zone - 2 * t;
     add({ id: id('railB'), role: 'rail', element: i, position: [x0 + t, railY, z0], size: [cw - 2 * t, t, railWidth], lengthAxis: 0, edges: { l2: true } });
     add({ id: id('railF'), role: 'rail', element: i, position: [x0 + t, railY, z0 + cd - railWidth], size: [cw - 2 * t, t, railWidth], lengthAxis: 0, edges: { l2: true } });
 
     if (el.front !== 'drawers') {
       for (let k = 0; k < el.shelves; k++) {
-        const y = t + Math.floor(((k + 1) * (sideHeight - t)) / (el.shelves + 1));
+        // Under a clothes rail the shelves stack down from the top, leaving the hanging space clear.
+        const y = el.rail
+          ? base + t + sideHeight - (k + 1) * (p.railShelfPitch + t)
+          : base + t + Math.floor(((k + 1) * (sideHeight - t)) / (el.shelves + 1));
         add({ id: id(`shelf${k}`), role: 'shelf', element: i, position: [x0 + t, y, z0], size: [cw - 2 * t, t, shelfDepth], lengthAxis: 0, edges: { l2: true } });
       }
     }
 
     if (config.back) {
-      add({ id: id('back'), role: 'back', element: i, material: 'hdf', position: [x0, 0, 0], size: [cw, zone - t, p.back], lengthAxis: cw >= zone - t ? 0 : 1 });
+      add({ id: id('back'), role: 'back', element: i, material: 'hdf', position: [x0, base, 0], size: [cw, zone - t, p.back], lengthAxis: cw >= zone - t ? 0 : 1 });
     }
 
     const allEdges = { l1: true, l2: true, w1: true, w2: true };
@@ -196,7 +201,8 @@ export function buildHandles(config: Config, parts: Part[]): HandlePlacement[] {
     const [x, y, z] = part.position;
     const [w, h, th] = part.size;
     const zf = z + th;
-    const top = y + h;
+    // On tall doors the handle sits at hand height instead of near the top edge.
+    const top = part.role === 'door' && h > 1300 && shape !== 'edge' && shape !== 'topPull' ? y + 1150 : y + h;
     const cx = x + w / 2;
     const cy = y + h / 2;
     // A side-hung door is pulled at the edge opposite the hinge; flaps and drawers at the centre.
@@ -251,5 +257,47 @@ export function buildHandles(config: Config, parts: Part[]): HandlePlacement[] {
     }
     out.push({ id: `handle:${part.id}`, frontId: part.id, shape, position, size });
   }
+  return out;
+}
+
+/** Legs under the carcass boundaries and clothes rails: drawn in 3D and counted as hardware, not cut from sheets. */
+export function buildFittings(config: Config, parts: Part[]): Fitting[] {
+  const model = requireModel(config.model);
+  const p = model.params;
+  const out: Fitting[] = [];
+  const bottoms = parts.filter((x) => x.role === 'bottom');
+
+  if (config.mount === 'legs' && bottoms.length > 0) {
+    const size = 36;
+    const inset = 30;
+    const first = bottoms[0] as Part;
+    const last = bottoms[bottoms.length - 1] as Part;
+    const z0 = first.position[2];
+    const depth = first.size[2];
+    const xs = [first.position[0] + inset, ...bottoms.slice(1).map((b) => b.position[0] - size / 2), last.position[0] + last.size[0] - inset - size];
+    xs.forEach((x, i) => {
+      for (const [k, z] of [z0 + inset, z0 + depth - inset - size].entries()) {
+        out.push({ id: `leg${i}.${k}`, kind: 'leg', element: null, position: [Math.round(x), 0, z], size: [size, config.legHeight, size] });
+      }
+    });
+  }
+
+  config.elements.forEach((el, i) => {
+    if (!el.rail || el.front === 'drawers' || !model.features.rail) return;
+    const sideL = parts.find((x) => x.id === `e${i}.sideL`);
+    const sideR = parts.find((x) => x.id === `e${i}.sideR`);
+    if (!sideL || !sideR) return;
+    const shelves = parts.filter((x) => x.element === i && x.role === 'shelf');
+    const under = shelves.length ? Math.min(...shelves.map((s) => s.position[1])) : sideL.position[1] + sideL.size[1] - p.board;
+    const diameter = 25;
+    const x = sideL.position[0] + sideL.size[0];
+    out.push({
+      id: `e${i}.rail`,
+      kind: 'rail',
+      element: i,
+      position: [x, under - 45 - diameter, sideL.position[2] + Math.round(sideL.size[2] / 2 - diameter / 2)],
+      size: [sideR.position[0] - x, diameter, diameter],
+    });
+  });
   return out;
 }

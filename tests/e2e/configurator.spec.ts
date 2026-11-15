@@ -166,7 +166,8 @@ for (const [browserLocale, expected] of [['mk-MK', 'mk'], ['en-US', 'en'], ['de-
     const page = await context.newPage();
     await page.goto('/');
     await expect(page).toHaveURL(new RegExp(`/${expected}$`));
-    await expect(page.getByRole('link', { name: expected === 'mk' ? 'Конфигурирај' : 'Configure' })).toHaveCount(2);
+    await expect(page.getByTestId('model-chooser').getByRole('link')).toHaveCount(7);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(expected === 'mk' ? 'Што изработуваме?' : 'What are we building?');
     await context.close();
   });
 }
@@ -191,13 +192,44 @@ test('lowering the height reduces shelves, tells the customer, and undo restores
   expect(await code(page)).toBe(before);
 });
 
-test('the second model reuses the shell without door controls', async ({ page }) => {
-  await page.goto('/en/configurator/shelf-1');
+test('the chooser opens each model, and each model shows only its own controls', async ({ page }) => {
+  await page.goto('/en');
+  await page.getByTestId('model-open-sideboard-1').click();
   await ready(page);
-  await page.getByTestId('step-3').getByRole('button', { name: 'Fronts and shelves' }).click();
+  await page.getByRole('button', { name: 'Open all' }).click();
   await expect(page.getByTestId('element-0').getByRole('radio', { name: 'Doors' })).toHaveCount(0);
   await expect(page.getByTestId('toggle-doors')).toHaveCount(0);
   await expect(page.getByTestId('viewer')).toHaveAttribute('data-handle-count', '0');
+  await expect(page.getByRole('radiogroup', { name: 'Mounting' })).toHaveCount(0);
+
+  await page.getByTestId('all-models').click();
+  await page.getByTestId('model-standing-sideboard-1').click();
+  await ready(page);
+  await page.getByRole('button', { name: 'Open all' }).click();
+  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '8');
+  await page.getByRole('radiogroup', { name: 'Leg height' }).getByRole('radio', { name: '20.0 cm' }).click();
+  await expect(page.getByTestId('summary')).toContainText('On legs, 20.0 cm');
+  await page.getByTestId('generate').click();
+  await page.getByRole('tab', { name: 'Hardware' }).click();
+  await expect(page.locator('[data-item="leg"]')).toHaveAttribute('data-qty', '8');
+});
+
+test('wardrobe: hanging rails are a wardrobe-only control and reach the hardware list', async ({ page }) => {
+  await page.goto('/en/configurator/wardrobe-1');
+  await ready(page);
+  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '2');
+  await page.getByTestId('step-3').getByRole('button', { name: 'Fronts and shelves' }).click();
+  await page.getByTestId('element-2').getByRole('switch', { name: 'Hanging rail' }).check();
+  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '3');
+  // Too shallow for hangers: the rails are removed and the customer is told.
+  const depth = page.getByRole('textbox', { name: 'Depth', exact: true });
+  await depth.fill('40');
+  await expect(page.getByTestId('notice')).toContainText('hanging rail no longer fits');
+  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '0');
+  await page.getByTestId('notice').getByRole('button', { name: 'Undo' }).click();
+  await page.getByTestId('generate').click();
+  await page.getByRole('tab', { name: 'Hardware' }).click();
+  await expect(page.locator('[data-item="hangingRail"]')).toHaveAttribute('data-qty', '3');
 });
 
 test('mobile: the viewer stays on screen while the controls scroll', async ({ page }) => {

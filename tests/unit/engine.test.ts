@@ -5,9 +5,11 @@ import { buildCutList, cutListCsv, isGrained } from '@/engine/cutlist';
 import { derive } from '@/engine/derive';
 import { MODELS, requireModel } from '@/engine/models';
 import { nest } from '@/engine/nesting';
-import { distributeEqual, limits, maxDrawers, maxShelves, normalise, resizeElement, scaleWidths, shelfSpacing, validate } from '@/engine/rules';
+import { distributeEqual, elementMaxShelves, limits, maxDrawers, maxShelves, normalise, railFits, resizeElement, scaleWidths, shelfSpacing, validate } from '@/engine/rules';
 import { decodeConfig, defaultConfig, encodeConfig } from '@/engine/share';
 import type { Config, ElementConfig, Part } from '@/engine/types';
+
+const WALL = { doubleTop: false, mount: 'wall', legHeight: 0 } as const;
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -20,47 +22,57 @@ function rng(seed: number) {
   };
 }
 
-/** A random but valid configuration of the sideboard. */
+/** A random but valid configuration of a random model. */
 function randomConfig(seed: number): Config {
   const r = rng(seed);
   const int = (min: number, max: number) => min + Math.floor(r() * (max - min + 1));
   const pick = <T,>(xs: readonly T[]): T => xs[int(0, xs.length - 1)] as T;
-  const model = requireModel('sideboard-1');
+  const model = MODELS[seed % MODELS.length]!;
   const p = model.params;
-  const n = int(1, 6);
-  const width = int(Math.max(p.widthMin, n * p.elementMin), p.widthMax);
+  const n = int(p.elementsMin, Math.min(p.elementsMax, Math.floor(p.widthMax / p.elementMin)));
+  const width = int(Math.max(p.widthMin, n * p.elementMin), Math.min(p.widthMax, n * p.elementMax));
   const spare = width - n * p.elementMin;
-  const cuts = Array.from({ length: n - 1 }, () => int(0, spare)).sort((a, b) => a - b);
-  const widths = Array.from({ length: n }, (_, i) => p.elementMin + (cuts[i] ?? spare) - (cuts[i - 1] ?? 0));
+  let widths: number[] = [];
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const cuts = Array.from({ length: n - 1 }, () => int(0, spare)).sort((a, b) => a - b);
+    widths = Array.from({ length: n }, (_, i) => p.elementMin + (cuts[i] ?? spare) - (cuts[i - 1] ?? 0));
+    if (widths.every((w) => w <= p.elementMax)) break;
+    widths = distributeEqual(width, n);
+  }
+  const template = model.defaults.elements[0]!;
   const base: Config = {
-    ...defaultConfig('sideboard-1'),
+    ...defaultConfig(model.slug),
     width,
     height: int(p.heightMin, p.heightMax),
     depth: int(p.depthMin, p.depthMax),
-    back: r() < 0.7,
-    doubleTop: r() < 0.3,
+    back: model.features.back ? r() < 0.7 : true,
+    doubleTop: model.features.doubleTop && r() < 0.3,
     bodyDecor: pick(DECORS).id,
     frontDecor: pick(DECORS).id,
     openingType: r() < 0.8 ? 'handles' : 'push',
     handleShape: pick(['bar128', 'bar320', 'longBar', 'knob', 'shell', 'edge', 'topPull'] as const),
-    elements: [],
+    mount: pick(model.mounts),
+    legHeight: model.legHeights.length ? pick(model.legHeights) : 0,
+    elements: widths.map((w) => ({ ...template, width: w, rail: false, shelves: 0 })),
   };
-  const lim = limits({ ...base, elements: widths.map((w) => ({ ...model.defaults.elements[0]!, width: w })) }, model);
+  const lim = limits(base, model);
   base.elements = widths.map((w): ElementConfig => {
-    const fronts = lim.drawersAvailable ? (['doors', 'open', 'drawers'] as const) : (['doors', 'open'] as const);
+    const fronts = model.fronts.filter((f) => f !== 'drawers' || lim.drawersAvailable);
+    const rail = lim.railAvailable && r() < 0.5;
     return {
       width: w,
       front: pick(fronts),
-      shelves: int(0, lim.maxShelves),
+      shelves: int(0, elementMaxShelves(base, { rail }, p)),
       doors: w >= p.doubleDoorMin && r() < 0.4 ? 2 : 1,
       opening: pick(['auto', 'left', 'right', 'bottom'] as const),
       drawers: int(1, Math.max(1, lim.maxDrawers)),
+      rail,
     };
   });
   return base;
 }
 
-const SEEDS = Array.from({ length: 300 }, (_, i) => i + 1);
+const SEEDS = Array.from({ length: 420 }, (_, i) => i + 1);
 
 function overlaps(a: Part, b: Part): boolean {
   return [0, 1, 2].every((k) => a.position[k]! < b.position[k]! + b.size[k]! && b.position[k]! < a.position[k]! + a.size[k]!);
@@ -115,11 +127,11 @@ describe('defaults', () => {
 
   it('shelf limits follow the minimum spacing', () => {
     const p = requireModel('sideboard-1').params;
-    expect(maxShelves({ height: 650, doubleTop: false }, p)).toBe(2);
-    expect(maxShelves({ height: 330, doubleTop: false }, p)).toBe(0);
-    expect(maxShelves({ height: 2000, doubleTop: false }, p)).toBe(10);
-    expect(shelfSpacing({ height: 650, doubleTop: false }, 1, p)).toBe(298);
-    expect(maxDrawers({ height: 650, doubleTop: false }, p)).toBe(4);
+    expect(maxShelves({ height: 650, ...WALL }, p)).toBe(2);
+    expect(maxShelves({ height: 330, ...WALL }, p)).toBe(0);
+    expect(maxShelves({ height: 2000, ...WALL }, p)).toBe(10);
+    expect(shelfSpacing({ height: 650, ...WALL }, 1, p)).toBe(298);
+    expect(maxDrawers({ height: 650, ...WALL }, p)).toBe(4);
   });
 });
 
@@ -170,6 +182,16 @@ describe('invariants over random configurations', () => {
         for (let j = i + 1; j < parts.length; j++) {
           if (overlaps(parts[i]!, parts[j]!)) throw new Error(`seed ${seed}: ${parts[i]!.id} overlaps ${parts[j]!.id}`);
         }
+      }
+      // Legs and rails are inside the outer dimensions and never run through a panel.
+      for (const fitting of derive(config).fittings) {
+        const box = { position: fitting.position, size: fitting.size } as Part;
+        const max = [config.width, config.height, config.depth];
+        for (const k of [0, 1, 2]) {
+          expect(fitting.position[k]!, `seed ${seed} ${fitting.id}`).toBeGreaterThanOrEqual(0);
+          expect(fitting.position[k]! + fitting.size[k]!, `seed ${seed} ${fitting.id}`).toBeLessThanOrEqual(max[k]!);
+        }
+        for (const part of parts) if (overlaps(box, part)) throw new Error(`seed ${seed}: ${fitting.id} runs through ${part.id}`);
       }
     }
   });
@@ -242,7 +264,10 @@ describe('invariants over random configurations', () => {
       expect(qty('handle') + qty('pushLatch')).toBe(fronts);
       expect(qty('shelfPin')).toBe(d.parts.filter((x) => x.role === 'shelf').length * 4);
       expect(qty('drawerSlide')).toBe(d.parts.filter((x) => x.role === 'drawerFront').length);
-      expect(qty('wallBracket')).toBe(config.elements.length * 2);
+      const brackets = config.mount === 'wall' ? config.elements.length * 2 : config.height > 1200 ? config.elements.length : 0;
+      expect(qty('wallBracket')).toBe(brackets);
+      expect(qty('leg')).toBe(config.mount === 'legs' ? (config.elements.length + 1) * 2 : 0);
+      expect(qty('hangingRail')).toBe(d.fittings.filter((f) => f.kind === 'rail').length);
     }
   });
 });
@@ -280,9 +305,44 @@ describe('validation', () => {
     expect(notices).toEqual([{ code: 'shelvesReduced', params: { max: 1 } }]);
   });
 
-  it('the open-shelf model rejects doors', () => {
-    const shelf = defaultConfig('shelf-1');
+  it('the open sideboard rejects doors', () => {
+    const shelf = defaultConfig('open-sideboard-1');
     expect(codes({ ...shelf, elements: shelf.elements.map((e) => ({ ...e, front: 'doors' as const })) })).toContain('unsupported@elements.0.front');
+  });
+});
+
+describe('models', () => {
+  it('every model has distinct rules and valid, buildable defaults', () => {
+    expect(new Set(MODELS.map((m) => m.slug)).size).toBe(MODELS.length);
+    for (const model of MODELS) {
+      expect(model.mounts).toContain(model.defaults.mount);
+      for (const el of model.defaults.elements) expect(model.fronts).toContain(el.front);
+    }
+  });
+
+  it('legs lift the carcass and keep the overall height', () => {
+    const config = defaultConfig('standing-sideboard-1');
+    const d = derive(config);
+    expect(d.parts.find((x) => x.id === 'e0.bottom')!.position[1]).toBe(config.legHeight);
+    expect(d.parts.find((x) => x.id === 'top')!.position[1] + 18).toBe(config.height);
+    expect(d.fittings.filter((f) => f.kind === 'leg')).toHaveLength((config.elements.length + 1) * 2);
+    expect(validate({ ...config, legHeight: 137 }).map((i) => i.path)).toContain('legHeight');
+    expect(validate({ ...config, mount: 'wall' }).map((i) => i.path)).toContain('mount');
+  });
+
+  it('a wardrobe rail keeps the hanging space clear and needs height and depth', () => {
+    const config = defaultConfig('wardrobe-1');
+    const p = requireModel('wardrobe-1').params;
+    const d = derive(config);
+    const rail = d.fittings.find((f) => f.id === 'e0.rail')!;
+    const bottom = d.parts.find((x) => x.id === 'e0.bottom')!;
+    expect(rail.position[1] - (bottom.position[1] + 18)).toBeGreaterThanOrEqual(p.hangingSpace);
+    expect(railFits({ ...config, depth: 400 }, p)).toBe(false);
+    expect(validate({ ...config, depth: 400 }).map((i) => i.code)).toContain('railSpace');
+    const { config: lowered, notices } = normalise({ ...config, depth: 400 }, requireModel('wardrobe-1'));
+    expect(lowered.elements.every((e) => !e.rail)).toBe(true);
+    expect(notices.map((n) => n.code)).toContain('railRemoved');
+    expect(validate({ ...defaultConfig('sideboard-1'), elements: defaultConfig('sideboard-1').elements.map((e) => ({ ...e, rail: true })) }).map((i) => i.code)).toContain('unsupported');
   });
 });
 
@@ -309,6 +369,10 @@ describe('sharing and export', () => {
       const config = randomConfig(seed);
       expect(decodeConfig(encodeConfig(config)), `seed ${seed}`).toEqual(config);
     }
+  });
+  it('still opens links made before mounting and rails existed', () => {
+    const old = '1.' + Buffer.from(JSON.stringify(['sideboard-1', 1650, 650, 350, [[550, 'doors', 1, 1, 'auto', 2], [550, 'doors', 1, 1, 'auto', 2], [550, 'doors', 1, 1, 'auto', 2]], 'w01', 's02', 1, 0, 'handles', 'bar128', 'grey'])).toString('base64url');
+    expect(decodeConfig(old)).toEqual(defaultConfig('sideboard-1'));
   });
   it('rejects tampered links', () => {
     expect(decodeConfig('1.not-base64')).toBeNull();

@@ -50,12 +50,28 @@ npm run screenshots  # regenerates docs/screenshots and docs/sample-cut-list-mk.
 `derive(config)` in `src/engine/derive.ts` is the single chain every view reads
 from: parts → handles → cut list → sheet layouts → hardware → price.
 
-## Adding a model
+## Models are modules
 
-Add a `ModelDef` to `src/engine/models/index.ts` (parameters, allowed fronts,
-feature flags, defaults), add its name under `models` and `home` in both
-message files. It appears on the home page and gets its own
-`/configurator/<slug>` route.
+`/` is the chooser ("What are we building?"). Each furniture type is one file
+in `src/engine/models/` and owns everything that differs between types:
+
+| In the model file | Effect |
+|---|---|
+| `params` | Limits (width, height, depth, elements, widest element) and construction values |
+| `fronts` | Which of doors / open / drawers an element may have; controls for the rest are not shown |
+| `mounts`, `legHeights` | Wall-hung, on legs, or on the floor; the mounting and leg controls appear only when there is a choice |
+| `features` | Back panel, double top, handles, hanging rail — each switches its control on or off |
+| `tags`, `nameKey` | The chooser card |
+| `defaults` | The starting design |
+
+Current models: wall-hung sideboard with doors, open sideboard, standing
+sideboard on legs, chest of drawers, wardrobe, nightstand, wall cabinet.
+
+To add one: copy a model file, adjust it, register it in
+`src/engine/models/index.ts`, add its name and description under `models`
+and `home.desc` in both message files, then run `npm run screenshots` to
+render its chooser image into `public/models/`. The unit tests pick the new
+model up automatically and run every invariant against it.
 
 ## Replace before going live
 

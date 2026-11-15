@@ -42,6 +42,7 @@ function useLabels() {
     if (key === 'handle' && item.detail) {
       return thw('handleDetail', { shape: ts(`shapes.${item.detail.shape}` as 'shapes.bar128'), finish: ts(`finishes.${item.detail.finish}` as 'finishes.grey') });
     }
+    if (key === 'leg' && item.detail) return thw('legDetail', { height: f.mm(Number(item.detail.height)), finish: ts(`finishes.${item.detail.finish}` as 'finishes.grey') });
     if (key === 'drawerSlide' && item.detail) return thw('drawerSlideDetail', { length: f.mm(Number(item.detail.length)) });
     return thw(`items.${key}` as 'items.hinge');
   };

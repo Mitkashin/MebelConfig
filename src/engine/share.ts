@@ -1,8 +1,8 @@
-import { requireModel } from './models';
+import { getModel, requireModel } from './models';
 import { validate } from './rules';
 import type { Config } from './types';
 
-const VERSION = '1';
+const VERSION = '2';
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text);
@@ -19,7 +19,7 @@ function fromBase64Url(value: string): string {
 
 /** Compact, URL-safe form of a configuration for the `c` query parameter. */
 export function encodeConfig(config: Config): string {
-  const e = config.elements.map((el) => [el.width, el.front, el.shelves, el.doors, el.opening, el.drawers]);
+  const e = config.elements.map((el) => [el.width, el.front, el.shelves, el.doors, el.opening, el.drawers, +el.rail]);
   const payload = [
     config.model,
     config.width,
@@ -33,6 +33,9 @@ export function encodeConfig(config: Config): string {
     config.openingType,
     config.handleShape,
     config.handleFinish,
+    config.mount,
+    config.legHeight,
+    config.legFinish,
   ];
   return `${VERSION}.${toBase64Url(JSON.stringify(payload))}`;
 }
@@ -41,16 +44,19 @@ export function encodeConfig(config: Config): string {
 export function decodeConfig(value: string | null | undefined): Config | null {
   if (!value) return null;
   const [version, body] = value.split('.');
-  if (version !== VERSION || !body) return null;
+  // Version 1 links predate mounting, legs and rails; those fields take the model's defaults.
+  if ((version !== VERSION && version !== '1') || !body) return null;
   try {
     const a = JSON.parse(fromBase64Url(body)) as unknown[];
     if (!Array.isArray(a) || !Array.isArray(a[4])) return null;
+    const defaults = getModel(String(a[0]))?.defaults;
+    if (!defaults) return null;
     const config = {
       model: a[0],
       width: a[1],
       height: a[2],
       depth: a[3],
-      elements: (a[4] as unknown[][]).map((el) => ({ width: el[0], front: el[1], shelves: el[2], doors: el[3], opening: el[4], drawers: el[5] })),
+      elements: (a[4] as unknown[][]).map((el) => ({ width: el[0], front: el[1], shelves: el[2], doors: el[3], opening: el[4], drawers: el[5], rail: el[6] === 1 })),
       bodyDecor: a[5],
       frontDecor: a[6],
       back: a[7] === 1,
@@ -58,6 +64,9 @@ export function decodeConfig(value: string | null | undefined): Config | null {
       openingType: a[9],
       handleShape: a[10],
       handleFinish: a[11],
+      mount: a[12] ?? defaults.mount,
+      legHeight: a[13] ?? defaults.legHeight,
+      legFinish: a[14] ?? defaults.legFinish,
     };
     return validate(config).length === 0 ? (config as Config) : null;
   } catch {

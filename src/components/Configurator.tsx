@@ -96,7 +96,7 @@ function Notices() {
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 grid justify-items-center gap-2 px-3" aria-live="polite">
       {notices.map((n) => (
         <div key={n.code} className="pointer-events-auto flex max-w-xl items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-sm text-white shadow-xl" data-testid="notice">
-          <span>{n.code === 'doubleDoorsRemoved' ? t(n.code, { min: f.length(Number(n.params.min)) }) : n.code === 'restoredDefaults' ? t(n.code) : t(n.code, { max: Number(n.params.max) })}</span>
+          <span>{n.code === 'doubleDoorsRemoved' ? t(n.code, { min: f.length(Number(n.params.min)) }) : n.code === 'restoredDefaults' || n.code === 'railRemoved' ? t(n.code) : t(n.code, { max: Number(n.params.max) })}</span>
           {n.code !== 'restoredDefaults' && (
             <button type="button" className="shrink-0 rounded-full border border-white/40 px-3 py-1 font-medium hover:bg-white/10" onClick={undo}>
               {t('undo')}
@@ -183,9 +183,9 @@ export function Configurator({ slug }: { slug: string }) {
           <Link href="/" className="text-lg font-bold tracking-tight text-accent-strong">
             {tb('brand')}
           </Link>
-          <span className="hidden text-line sm:inline" aria-hidden="true">
-            /
-          </span>
+          <Link href="/" className="rounded-full border border-line px-3 py-1 text-sm hover:border-accent hover:text-accent" data-testid="all-models">
+            {t('models')}
+          </Link>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium sm:text-base">{tm(model.nameKey as 'sideboard')}</h1>
           <div className="flex rounded-full bg-paper p-1" role="tablist" aria-label={t('view')}>
             {(['settings', 'results'] as const).map((name) => (

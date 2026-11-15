@@ -119,3 +119,27 @@ accounts, so "Save" is per browser.
 - Handles are simple shapes; hinges and slides are not drawn.
 - The app needs a Node host (it uses a language redirect and one API route),
   so it is not deployed anywhere yet.
+
+## Addendum: model chooser and modular models
+
+- `/` is now a chooser ("What are we building?") with seven furniture types,
+  each shown with our own 3D render: wall-hung sideboard, open sideboard,
+  standing sideboard on legs, chest of drawers, wardrobe, nightstand, wall
+  cabinet. The configurator header links back to it.
+- Each type is one module in `src/engine/models/` declaring its limits,
+  fronts, mounting options and optional controls; the steps show only what a
+  model offers (legs and mounting, hanging rails, drawers, doors, double top).
+- New engine features: mounting (wall, legs, floor) with leg height and
+  colour, clothes rails with a kept-clear hanging space, a per-model maximum
+  element width, and the matching hardware (legs, rails, holders, anti-tip
+  brackets).
+- Checks after the change: type-check and lint clean, 40 unit tests
+  (invariants over 420 random configurations spread across all seven
+  models), production build, 11 end-to-end tests, renders of every model
+  reviewed by eye.
+- Dev mode was also fixed and checked on `localhost` and `127.0.0.1` (it
+  previously stayed unresponsive when opened on anything but `localhost`).
+- Not verified: the six added models were not compared with the reference's
+  versions of them — their limits and options are our own choices (see
+  `assumptions.md`). The wardrobe is simpler than the reference's (no stacked
+  rows, no glass doors).

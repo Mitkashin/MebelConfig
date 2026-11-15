@@ -6,7 +6,7 @@ import { Component, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNo
 import * as THREE from 'three';
 import { getDecor, HANDLE_FINISHES } from '@/engine/catalog';
 import { isGrained } from '@/engine/cutlist';
-import type { Axis, Config, HandlePlacement, Part, Vec3 } from '@/engine/types';
+import type { Axis, Config, Fitting, HandlePlacement, Part, Vec3 } from '@/engine/types';
 import { rowColor } from '@/lib/format';
 
 const MM = 0.001;
@@ -17,6 +17,7 @@ export interface SceneProps {
   config: Config;
   parts: Part[];
   handles: HandlePlacement[];
+  fittings: Fitting[];
   mountHeight: number;
   doorsOpen: boolean;
   /** Fronts opened or closed individually by clicking them. */
@@ -249,6 +250,24 @@ function HandleMesh({ handle, color }: { handle: HandlePlacement; color: string 
   );
 }
 
+function FittingMesh({ fitting, color }: { fitting: Fitting; color: string }) {
+  const [x, y, z] = fitting.position;
+  const [sx, sy, sz] = fitting.size;
+  const center: Vec3 = [x + sx / 2, y + sy / 2, z + sz / 2];
+  if (fitting.kind === 'rail') {
+    return (
+      <mesh position={center} rotation={[0, 0, Math.PI / 2]} material={handleMaterial('#c5c8cc')} castShadow>
+        <cylinderGeometry args={[sy / 2, sy / 2, sx, 20]} />
+      </mesh>
+    );
+  }
+  return (
+    <mesh position={center} material={handleMaterial(color)} castShadow>
+      <cylinderGeometry args={[sx / 2, sx / 2.8, sy, 20]} />
+    </mesh>
+  );
+}
+
 function DimensionLine({ from, to, text, tick }: { from: Vec3; to: Vec3; text: string; tick: Vec3 }) {
   const mid: Vec3 = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2];
   const ends = [from, to].map((p): [Vec3, Vec3] => [
@@ -434,6 +453,9 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
                   <HandleMesh key={h.id} handle={h} color={handleColor} />
                 ))}
               </Mover>
+            ))}
+            {props.fittings.map((f) => (
+              <FittingMesh key={f.id} fitting={f} color={HANDLE_FINISHES[config.legFinish]} />
             ))}
             {props.showDimensions && <Dimensions config={config} labels={props.labels} />}
           </group>

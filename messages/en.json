@@ -19,15 +19,40 @@
     "configurator": "{model} configurator | PoMerka"
   },
   "models": {
-    "sideboard": "Wall-hung sideboard",
-    "shelf": "Wall shelf unit"
+    "sideboard": "Wall-hung sideboard with doors",
+    "openSideboard": "Open sideboard",
+    "standingSideboard": "Standing sideboard on legs",
+    "drawerSideboard": "Chest of drawers",
+    "wardrobe": "Wardrobe",
+    "nightstand": "Nightstand",
+    "wallCabinet": "Wall cabinet"
   },
   "home": {
-    "title": "Furniture made to your measurements",
-    "subtitle": "Pick a model, set the size, and get the cut list, sheet layouts and price straight away.",
+    "eyebrow": "Models",
+    "title": "What are we building?",
+    "subtitle": "Every model is a starting point: the measurements, elements and decors are yours. The cut list follows every change.",
     "configure": "Configure",
-    "sideboardDesc": "Doors, drawers or open elements, 60–278 cm wide.",
-    "shelfDesc": "Open shelving for the wall, 60–278 cm wide.",
+    "adjust": "You set",
+    "desc": {
+      "sideboard": "Hung on the wall, with doors, drawers or open elements.",
+      "openSideboard": "Hung on the wall, without doors: shelves only.",
+      "standingSideboard": "Stands on legs, with doors, drawers or open elements.",
+      "drawerSideboard": "Drawers in every element, on legs or hung on the wall.",
+      "wardrobe": "Tall columns with doors, shelves and hanging rails.",
+      "nightstand": "Small, with drawers or an open shelf, on legs or on the wall.",
+      "wallCabinet": "Shallow cabinet for the wall with one or two doors."
+    },
+    "tags": {
+      "size": "Size",
+      "elements": "Elements",
+      "doors": "Doors",
+      "shelves": "Shelves",
+      "drawers": "Drawers",
+      "legs": "Legs",
+      "columns": "Columns",
+      "rails": "Hanging rails"
+    },
+    "imageAlt": "3D preview: {model}",
     "notFound": "This page does not exist.",
     "backHome": "Back to the models"
   },
@@ -46,7 +71,8 @@
     "languages": {
       "mk": "Македонски",
       "en": "English"
-    }
+    },
+    "models": "All models"
   },
   "save": {
     "title": "Saved designs",
@@ -64,7 +90,8 @@
     "doubleDoorsRemoved": "Elements narrower than {min} were changed to a single door.",
     "restoredDefaults": "That link could not be opened, so the default design is shown.",
     "undo": "Undo",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "railRemoved": "A hanging rail no longer fits, so it was removed."
   },
   "field": {
     "decrease": "Decrease {field}",
@@ -83,7 +110,9 @@
     "drawersMax": "At this height an element fits at most {max, plural, one {# drawer} other {# drawers}} (each front needs {min}).",
     "doubleDoorMin": "Double doors need an element at least {min} wide.",
     "drawersDepth": "Drawers need a depth between {min} and {max}.",
-    "invalid": "Enter a number."
+    "invalid": "Enter a number.",
+    "elementMax": "An element can be at most {max} wide. Add an element or reduce the width.",
+    "railSpace": "A hanging rail needs a height of at least {height} and a depth of at least {depth}."
   },
   "steps": {
     "title": "Settings",
@@ -134,7 +163,11 @@
       },
       "autoResult": "Hinged automatically: {side}",
       "drawerCount": "Drawers",
-      "drawerFront": "Front height about {value}; up to {max} drawers fit this height."
+      "drawerFront": "Front height about {value}; up to {max} drawers fit this height.",
+      "rail": "Hanging rail",
+      "railHelp": "A rail for hangers with {space} of clear hanging height under it; shelves go above the rail.",
+      "railUnavailable": "A hanging rail needs a height of at least {height} and a depth of at least {depth}.",
+      "shelvesAboveRail": "Shelves above the rail"
     },
     "colours": {
       "title": "Colours",
@@ -190,7 +223,16 @@
         "gold": "Gold",
         "white": "White",
         "brown": "Brown"
-      }
+      },
+      "mount": "Mounting",
+      "mounts": {
+        "wall": "Hung on the wall",
+        "legs": "On legs",
+        "floor": "Stands on the floor"
+      },
+      "legHeight": "Leg height",
+      "legHelp": "The total height stays the same; the body is lower by the height of the legs.",
+      "legFinish": "Leg colour"
     }
   },
   "summary": {
@@ -219,7 +261,10 @@
     "liveSheets": "{parts, plural, one {# part} other {# parts}} · {sheets, plural, one {# sheet} other {# sheets}}",
     "generate": "Generate cut list",
     "fixFirst": "Fix these fields first:",
-    "generateHelp": "The cut list, sheet layouts and price follow the current settings and update as you change them."
+    "generateHelp": "The cut list, sheet layouts and price follow the current settings and update as you change them.",
+    "mount": "Mounting",
+    "mountLegs": "On legs, {height}",
+    "withRail": ", hanging rail"
   },
   "viewer": {
     "loading": "Loading 3D view…",
@@ -264,8 +309,12 @@
       "screwCap": "Screw cap in body colour",
       "handleScrew": "Handle screw M4",
       "backNail": "Nail for HDF 1.4 × 20",
-      "wallPlug": "Wall plug with screw"
-    }
+      "wallPlug": "Wall plug with screw",
+      "leg": "Leg",
+      "hangingRail": "Hanging rail, cut to the element",
+      "railHolder": "Rail holder"
+    },
+    "legDetail": "Leg, {height}, {finish}"
   },
   "results": {
     "title": "Results",

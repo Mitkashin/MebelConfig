@@ -1,5 +1,6 @@
 import { test } from '@playwright/test';
 import { encodeConfig, defaultConfig } from '../../src/engine/share';
+import { MODELS } from '../../src/engine/models';
 import type { Config } from '../../src/engine/types';
 
 const base = defaultConfig('sideboard-1');
@@ -56,7 +57,10 @@ const SHOTS: { name: string; config: Config; click?: string[]; locale?: string; 
     name: '06-tall-narrow-push',
     config: { ...base, width: 700, height: 1800, depth: 300, openingType: 'push', bodyDecor: 'x04', frontDecor: 'x04', back: false, elements: [{ ...el, width: 350, shelves: 5 }, { ...el, width: 350, front: 'open', shelves: 6 }] },
   },
-  { name: '07-shelf-model', config: defaultConfig('shelf-1') },
+  { name: '07-open-sideboard', config: defaultConfig('open-sideboard-1') },
+  { name: '14-wardrobe-open', config: defaultConfig('wardrobe-1'), click: ['toggle-doors'] },
+  { name: '15-standing-sideboard', config: defaultConfig('standing-sideboard-1') },
+  { name: '16-chest-of-drawers-open', config: defaultConfig('drawer-sideboard-1'), click: ['toggle-doors'] },
   { name: '08-mobile', config: base, viewport: { width: 390, height: 844 } },
 ];
 
@@ -93,4 +97,22 @@ test('13-sample-pdf', async ({ page }) => {
   await page.getByTestId('generate').click();
   const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 60_000 }), page.getByTestId('download-pdf').click()]);
   await pdf.saveAs('docs/sample-cut-list-mk.pdf');
+});
+
+// Card images for the model chooser: our own renders of each model's starting configuration.
+for (const model of MODELS) {
+  test(`thumbnail-${model.slug}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 760 });
+    await page.goto(`/en/configurator/${model.slug}`);
+    await page.locator('[data-testid="viewer"][data-ready="1"]').waitFor({ timeout: 60_000 });
+    await page.addStyleTag({ content: '.no-print{display:none!important} [data-testid="viewer"]{border:0!important;border-radius:0!important}' });
+    await page.waitForTimeout(1500);
+    await page.getByTestId('viewer').screenshot({ path: `public/models/${model.slug}.raw.png` });
+  });
+}
+
+test('17-chooser', async ({ page }) => {
+  await page.goto('/en');
+  await page.waitForLoadState('networkidle');
+  await page.screenshot({ path: 'docs/screenshots/17-model-chooser.png', fullPage: true });
 });

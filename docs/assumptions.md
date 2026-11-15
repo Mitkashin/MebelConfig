@@ -76,6 +76,33 @@ perimeter; 2 wall plugs per bracket. Screws, caps, nails and plugs carry a
 per bottom-hinged door. Unlike the reference, hardware is priced as separate
 lines in the total.
 
+## The seven models
+The chooser offers the same seven furniture types as the reference. Only the
+wall-hung sideboard was studied control by control and checked against a
+generated cut list; the other six follow the same carcass construction with
+their own limits and options, chosen by us:
+
+| Model | Fronts | Mounting | Size limits (W / H / D, mm) | Notes |
+|---|---|---|---|---|
+| Wall-hung sideboard | doors, open, drawers | wall | 600–2780 / 300–2000 / 150–600 | the verified reference model |
+| Open sideboard | open | wall | 600–2780 / 300–1400 / 150–450 | no door, drawer or handle controls |
+| Standing sideboard | doors, open, drawers | legs 100/150/200 | 600–2780 / 450–1400 / 150–600 | total height includes the legs |
+| Chest of drawers | drawers, doors, open | legs or wall | 600–2780 / 400–1400 / 300–600 | |
+| Wardrobe | doors, open | floor | 400–2780 / 1600–2400 / 350–650 | columns 400–1200 wide; hanging rails |
+| Nightstand | drawers, open, doors | legs or wall | 300–900 / 300–800 / 300–500 | 1–2 elements |
+| Wall cabinet | doors, open | wall | 300–1800 / 300–1200 / 150–400 | 1–4 elements |
+
+- **Legs:** two per carcass boundary (front and back), bought in; they are in
+  the hardware list and the 3D view, not the cut list.
+- **Wardrobe:** columns only. The reference's wardrobe also stacks carcasses
+  in rows and offers glass doors; neither is built. A hanging rail needs
+  900 mm of clear height under it and an overall depth of at least 450 mm;
+  shelves in a rail column stack from the top at 300 mm pitch. Standing
+  pieces taller than 1200 mm get one anti-tip wall bracket per element.
+- **Handles on tall doors** (over 1300 mm) sit at about 1 m from the door's
+  lower edge instead of near the top.
+- Share links made before these models existed still open.
+
 ## Other
 - Wall-hung at 400 mm above the floor in the 3D scene (as in the reference);
   this is presentation only.

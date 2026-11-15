@@ -1,17 +1,17 @@
-import { buildHandles, buildParts } from './build';
+import { buildFittings, buildHandles, buildParts } from './build';
 import { CURRENCY, HANDLE_PRICE_FACTOR, HARDWARE_PRICES, RATES } from './catalog';
 import { bandingLength, buildCutList } from './cutlist';
 import { requireModel } from './models';
 import { nest } from './nesting';
 import { carcassDepth, slideLength } from './rules';
-import type { Config, Derived, HardwareItem, NestResult, Part, Price, PriceLine } from './types';
+import type { Config, Derived, Fitting, HardwareItem, NestResult, Part, Price, PriceLine } from './types';
 
 const RESERVE = 0.1;
 /** Screws, caps and plugs are bought with a 10 % reserve, rounded up. */
 const withReserve = (n: number) => (n > 0 ? n + Math.ceil(n * RESERVE) : 0);
 
 /** Fittings needed to build the piece, derived from the same parts list as everything else. */
-export function buildHardware(config: Config, parts: Part[]): HardwareItem[] {
+export function buildHardware(config: Config, parts: Part[], fittings: Fitting[] = []): HardwareItem[] {
   const model = requireModel(config.model);
   const p = model.params;
   const price = (key: string) => HARDWARE_PRICES[key] ?? 0;
@@ -38,12 +38,19 @@ export function buildHardware(config: Config, parts: Part[]): HardwareItem[] {
   }
   if (drawers > 0) push('drawerSlide', drawers, 'pair', { length: slideLength(carcassDepth(config, p), p) ?? 0 });
   push('shelfPin', shelves * 4);
-  push('wallBracket', elements * 2);
+  const legs = fittings.filter((f) => f.kind === 'leg').length;
+  const rails = fittings.filter((f) => f.kind === 'rail').length;
+  push('leg', legs, 'pcs', { height: config.legHeight, finish: config.legFinish });
+  push('hangingRail', rails);
+  push('railHolder', rails * 2);
+  // Hung pieces carry on two brackets per element; tall standing pieces get one each against tipping.
+  const brackets = config.mount === 'wall' ? elements * 2 : config.height > 1200 ? elements : 0;
+  push('wallBracket', brackets);
 
-  // 3.5x16: four per hinge, eight per pair of slides, two per push latch.
-  push('screw3516', withReserve(hinges * 4 + drawers * 8 + (handles ? 0 : fronts * 2)));
-  // 4x30: top fixed through the rails (4 per carcass), wall brackets (2 each), drawer fronts (4 each).
-  push('screw430', withReserve(elements * 4 + elements * 2 * 2 + drawers * 4));
+  // 3.5x16: four per hinge, eight per pair of slides, two per push latch, two per rail holder.
+  push('screw3516', withReserve(hinges * 4 + drawers * 8 + (handles ? 0 : fronts * 2) + rails * 4));
+  // 4x30: top fixed through the rails (4 per carcass), wall brackets (2 each), drawer fronts and legs (4 each).
+  push('screw430', withReserve(elements * 4 + brackets * 2 + drawers * 4 + legs * 4));
   // 4x50: bottom to sides (2 joints) and rails to sides (4 joints) per carcass, 4 corner joints per drawer box.
   const perJoint = carcassDepth(config, p) > 400 ? 3 : 2;
   const carcassScrews = withReserve(elements * (2 * perJoint + 4 * 2) + drawers * 4 * 2);
@@ -51,7 +58,7 @@ export function buildHardware(config: Config, parts: Part[]): HardwareItem[] {
   push('screwCap', carcassScrews);
   if (handles) push('handleScrew', withReserve(fronts * (config.handleShape === 'knob' ? 1 : 2)));
   push('backNail', withReserve(nailed.reduce((s, b) => s + Math.ceil((2 * (b.length + b.width)) / 150), 0)));
-  push('wallPlug', withReserve(elements * 2 * 2));
+  push('wallPlug', withReserve(brackets * 2));
   return items;
 }
 
@@ -106,7 +113,8 @@ export function derive(config: Config, overrides: PriceOverrides = {}): Derived 
   const handles = buildHandles(config, parts);
   const cutList = buildCutList(parts);
   const nested = nest(parts);
-  const hardware = buildHardware(config, parts);
+  const fittings = buildFittings(config, parts);
+  const hardware = buildHardware(config, parts, fittings);
   const { price, bandingMeters } = buildPrice(parts, nested, hardware, overrides);
-  return { parts, handles, cutList, nest: nested, hardware, price, bandingMeters, sheetCount: nested.sheets.length };
+  return { parts, handles, fittings, cutList, nest: nested, hardware, price, bandingMeters, sheetCount: nested.sheets.length };
 }

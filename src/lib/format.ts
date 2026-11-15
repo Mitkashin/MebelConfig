@@ -80,6 +80,10 @@ export function useFormat() {
           return t('issues.widthForElements', { count: Number(p.count), min: len(p.min), max: len(p.max) });
         case 'elementMin':
           return t('issues.elementMin', { min: len(p.min), max: len(p.max) });
+        case 'elementMax':
+          return t('issues.elementMax', { max: len(p.max) });
+        case 'railSpace':
+          return t('issues.railSpace', { height: len(p.height), depth: len(p.depth) });
         case 'elementCount':
           return t('issues.elementCount', { min: Number(p.min), max: Number(p.max) });
         case 'shelvesMax':

@@ -26,6 +26,7 @@ export function Summary() {
     [t('elements'), String(config.elements.length)],
     [t('fronts'), ts('fronts.summary', { closed, total: config.elements.length })],
     [t('back'), config.back ? t('included') : t('none')],
+    [t('mount'), config.mount === 'legs' ? t('mountLegs', { height: f.length(config.legHeight) }) : ts(`details.mounts.${config.mount}`)],
   ];
   if (model.features.doubleTop) rows.push([t('top'), config.doubleTop ? t('topDouble') : t('topSingle')]);
   if (showHandles) {
@@ -60,6 +61,7 @@ export function Summary() {
               front: e.front === 'drawers' ? t('withDrawers', { count: e.drawers }) : e.front === 'doors' ? t(e.doors === 2 ? 'withDoubleDoors' : 'withDoor') : t('openFront'),
               shelves: e.front === 'drawers' ? 0 : e.shelves,
             })}
+            {e.rail && e.front !== 'drawers' ? t('withRail') : ''}
           </li>
         ))}
       </ul>

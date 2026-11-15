@@ -4,8 +4,8 @@ import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { DECOR_CATEGORIES, DECORS, getDecor, HANDLE_FINISHES, HANDLE_SHAPES, type Decor, type DecorCategory } from '@/engine/catalog';
 import { requireModel } from '@/engine/models';
-import { drawerDepthMin, frontZone, limits, shelfSpacing } from '@/engine/rules';
-import type { Front, HandleFinish, Opening } from '@/engine/types';
+import { drawerDepthMin, elementMaxShelves, frontZone, limits, railHeightMin, shelfSpacing } from '@/engine/rules';
+import type { Front, HandleFinish, Mount, Opening } from '@/engine/types';
 import { useFormat } from '@/lib/format';
 import { useConfigurator } from '@/store/configurator';
 import { Counter, cx, NumberField, Segmented, StepCard, Switch } from '../ui/controls';
@@ -87,8 +87,14 @@ function Fronts() {
             {frontOptions.length > 1 && <Segmented label={t('front')} value={el.front} options={frontOptions} onChange={(front) => patchElement(i, { front })} />}
             {el.front !== 'drawers' && (
               <>
-                <Counter label={t('shelves')} value={el.shelves} min={0} max={lim.maxShelves} onChange={(shelves) => patchElement(i, { shelves })} />
-                {el.shelves > 0 && <p className="text-sm text-muted">{t('spacing', { value: f.length(Math.round(shelfSpacing(config, el.shelves, p))) })}</p>}
+                {model.features.rail && (
+                  <>
+                    <Switch label={t('rail')} help={t('railHelp', { space: f.length(p.hangingSpace) })} checked={el.rail} onChange={(rail) => lim.railAvailable && patchElement(i, { rail })} />
+                    {!lim.railAvailable && <p className="text-sm text-muted">{t('railUnavailable', { height: f.length(railHeightMin(config, p)), depth: f.length(p.railDepthMin) })}</p>}
+                  </>
+                )}
+                <Counter label={el.rail ? t('shelvesAboveRail') : t('shelves')} value={el.shelves} min={0} max={elementMaxShelves(config, el, p)} onChange={(shelves) => patchElement(i, { shelves })} />
+                {el.shelves > 0 && !el.rail && <p className="text-sm text-muted">{t('spacing', { value: f.length(Math.round(shelfSpacing(config, el.shelves, p))) })}</p>}
               </>
             )}
             {el.front === 'doors' && (
@@ -255,11 +261,39 @@ function Colours() {
 
 function Details() {
   const t = useTranslations('steps.details');
+  const f = useFormat();
   const { config, model } = useModel();
   const patch = useConfigurator((s) => s.patch);
   const hasFronts = config.elements.some((e) => e.front !== 'open');
   return (
     <>
+      {model.mounts.length > 1 && (
+        <Segmented label={t('mount')} value={config.mount} options={model.mounts.map((m: Mount) => ({ value: m, label: t(`mounts.${m}`) }))} onChange={(mount) => patch({ mount })} />
+      )}
+      {config.mount === 'legs' && (
+        <>
+          <Segmented label={t('legHeight')} value={config.legHeight} options={model.legHeights.map((h) => ({ value: h, label: f.length(h) }))} onChange={(legHeight) => patch({ legHeight })} />
+          <p className="text-sm text-muted">{t('legHelp')}</p>
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">{t('legFinish')}</span>
+            <div role="radiogroup" aria-label={t('legFinish')} className="flex flex-wrap gap-2">
+              {(['black', 'grey', 'white', 'gold'] as HandleFinish[]).map((finish) => (
+                <button
+                  key={finish}
+                  type="button"
+                  role="radio"
+                  aria-checked={finish === config.legFinish}
+                  className={cx('flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-sm', finish === config.legFinish ? 'border-accent bg-accent-soft font-medium' : 'border-line hover:border-accent')}
+                  onClick={() => patch({ legFinish: finish })}
+                >
+                  <span className="size-6 rounded-full border border-black/15" style={{ backgroundColor: HANDLE_FINISHES[finish] }} aria-hidden="true" />
+                  {t(`finishes.${finish}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
       {model.features.back && <Switch label={t('back')} help={t('backHelp')} checked={config.back} onChange={(back) => patch({ back })} />}
       {model.features.doubleTop && <Switch label={t('doubleTop')} help={t('doubleTopHelp')} checked={config.doubleTop} onChange={(doubleTop) => patch({ doubleTop })} />}
       {model.features.handles && hasFronts && (
@@ -344,7 +378,7 @@ export function Steps() {
     model.fronts.some((x) => x !== 'open')
       ? t('colours.summary', { body: f.decorName(config.bodyDecor), front: f.decorName(config.frontDecor) })
       : f.decorName(config.bodyDecor),
-    [config.back ? t('details.summaryBack') : t('details.summaryNoBack'), closed > 0 && model.features.handles ? t(`details.${config.openingType}`) : null].filter(Boolean).join(' · '),
+    [t(`details.mounts.${config.mount}`), config.back ? t('details.summaryBack') : t('details.summaryNoBack'), closed > 0 && model.features.handles ? t(`details.${config.openingType}`) : null].filter(Boolean).join(' · '),
   ];
   const bodies = [<Dimensions key="d" />, <Elements key="e" />, <Fronts key="f" />, <Colours key="c" />, <Details key="x" />];
   const names = ['dimensions', 'elements', 'fronts', 'colours', 'details'] as const;

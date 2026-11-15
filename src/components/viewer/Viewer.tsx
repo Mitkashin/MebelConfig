@@ -79,6 +79,7 @@ export function Viewer() {
       data-ready={ready ? '1' : '0'}
       data-part-count={derived.parts.length}
       data-handle-count={derived.handles.length}
+      data-fitting-count={derived.fittings.length}
       data-doors-open={doorsOpen ? '1' : '0'}
       data-exploded={exploded ? '1' : '0'}
       data-selected={selected.join(',')}
@@ -92,7 +93,8 @@ export function Viewer() {
         config={config}
         parts={derived.parts}
         handles={derived.handles}
-        mountHeight={model.mountHeight}
+        fittings={derived.fittings}
+        mountHeight={config.mount === 'wall' ? model.wallHeight : 0}
         doorsOpen={doorsOpen}
         toggled={toggled}
         exploded={exploded}
