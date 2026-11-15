@@ -7,6 +7,7 @@ import { decodeConfig, defaultConfig, encodeConfig } from '@/engine/share';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 import { useFormat } from '@/lib/format';
+import { formatDate } from '@/lib/numbers';
 import { useConfigurator } from '@/store/configurator';
 import { listSaved, readUnit, removeSaved, saveDesign, writeUnit, type SavedDesign } from '@/store/saved';
 import { Results } from './results/Results';
@@ -24,7 +25,6 @@ function SavePanel({ onClose }: { onClose: () => void }) {
   const [list, setList] = useState<SavedDesign[]>(() => listSaved());
   const [name, setName] = useState('');
   const locale = useLocale();
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' });
   const mine = list.filter((d) => decodeConfig(d.code)?.model === config.model);
 
   return (
@@ -66,7 +66,7 @@ function SavePanel({ onClose }: { onClose: () => void }) {
                 }}
               >
                 <span className="block truncate font-medium">{d.name}</span>
-                <span className="text-xs text-muted">{date.format(d.savedAt)}</span>
+                <span className="text-xs text-muted">{formatDate(d.savedAt, locale)}</span>
               </button>
               <button type="button" className="rounded-full px-2 text-sm text-muted hover:text-warn" aria-label={t('remove', { name: d.name })} onClick={() => setList(removeSaved(d.id))}>
                 ×

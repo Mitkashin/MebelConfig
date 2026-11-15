@@ -9,6 +9,7 @@ import { requireModel } from '@/engine/models';
 import { encodeConfig } from '@/engine/share';
 import type { CutRow, HardwareItem, PriceLine, Sheet, Stock } from '@/engine/types';
 import { rowColor, useFormat } from '@/lib/format';
+import { formatDate } from '@/lib/numbers';
 import { createPdfBlob, saveBlob, sheetSvg, type PdfInput } from '@/lib/pdf';
 import { useConfigurator } from '@/store/configurator';
 import { cx } from '../ui/controls';
@@ -431,7 +432,7 @@ export function Results() {
           [ts('elements'), config.elements.map((e) => f.length(e.width)).join(' / ')],
           [t('pdf.body'), f.decorName(config.bodyDecor)],
           [t('pdf.front'), f.decorName(config.frontDecor)],
-          [t('pdf.date'), new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date())],
+          [t('pdf.date'), formatDate(new Date(), locale)],
         ],
         cutList: {
           title: t('tabs.parts'),
@@ -494,7 +495,7 @@ export function Results() {
           </button>
         </div>
         <div className="no-print flex flex-wrap gap-2">
-          <button type="button" className={cx(actionButton, 'border-accent bg-accent text-white hover:bg-accent-strong hover:text-white')} disabled={busy} onClick={pdf} data-testid="download-pdf">
+          <button type="button" className="rounded-full border border-accent bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-50" disabled={busy} onClick={pdf} data-testid="download-pdf">
             {busy ? t('export.preparing') : t('export.pdf')}
           </button>
           <button type="button" className={actionButton} onClick={() => saveBlob(new Blob([csv()], { type: 'text/csv;charset=utf-8' }), `${fileBase}.csv`)} data-testid="download-csv">

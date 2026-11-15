@@ -1,10 +1,11 @@
 'use client';
 
-import { useFormatter, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
 import { CURRENCY, getDecor } from '@/engine/catalog';
 import type { CutRow, Issue } from '@/engine/types';
 import { useConfigurator, type Unit } from '@/store/configurator';
+import { formatNumber } from './numbers';
 
 /** Colours that tie a cut-list row to its parts in the 3D view and on the sheet diagrams. */
 export const ROW_COLORS = ['#1f6f8b', '#b3541e', '#3b7d4f', '#7a4fa3', '#a8323c', '#4a5fa8', '#8a6d1c', '#2d7f7a', '#9c4a7c', '#5c6b3a'];
@@ -21,7 +22,8 @@ export function parseLength(text: string, unit: Unit): number | null {
 
 /** Locale-aware formatting of lengths, money and the catalogue names. */
 export function useFormat() {
-  const format = useFormatter();
+  const locale = useLocale();
+  const number = useCallback((value: number, options?: { min?: number; max?: number; grouping?: boolean }) => formatNumber(value, locale, options), [locale]);
   const t = useTranslations();
   const unit = useConfigurator((s) => s.unit);
 
@@ -29,24 +31,24 @@ export function useFormat() {
   const lengthValue = useCallback(
     (mm: number) =>
       unit === 'cm'
-        ? format.number(mm / 10, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })
-        : format.number(mm, { maximumFractionDigits: 0, useGrouping: false }),
-    [format, unit],
+        ? number(mm / 10, { min: 1, max: 1, grouping: false })
+        : number(mm, { grouping: false }),
+    [number, unit],
   );
 
   const length = useCallback(
     (mm: number) =>
       unit === 'cm'
-        ? t('units.cmValue', { value: format.number(mm / 10, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })
-        : t('units.mmValue', { value: format.number(mm, { maximumFractionDigits: 0 }) }),
-    [format, t, unit],
+        ? t('units.cmValue', { value: number(mm / 10, { min: 1, max: 1 }) })
+        : t('units.mmValue', { value: number(mm) }),
+    [number, t, unit],
   );
 
-  const mm = useCallback((value: number) => t('units.mmValue', { value: format.number(value, { maximumFractionDigits: 0 }) }), [format, t]);
-  const meters = useCallback((value: number) => t('units.mValue', { value: format.number(value, { minimumFractionDigits: 1, maximumFractionDigits: 2 }) }), [format, t]);
-  const money = useCallback((value: number) => format.number(value, { style: 'currency', currency: CURRENCY, maximumFractionDigits: 0 }), [format]);
-  const percent = useCallback((value: number) => format.number(value, { style: 'percent', maximumFractionDigits: 0 }), [format]);
-  const count = useCallback((value: number) => format.number(value, { maximumFractionDigits: 2 }), [format]);
+  const mm = useCallback((value: number) => t('units.mmValue', { value: number(value) }), [number, t]);
+  const meters = useCallback((value: number) => t('units.mValue', { value: number(value, { min: 1, max: 2 }) }), [number, t]);
+  const money = useCallback((value: number) => t(`units.money.${CURRENCY}` as 'units.money.MKD', { value: number(Math.round(value)) }), [number, t]);
+  const percent = useCallback((value: number) => t('units.percent', { value: number(Math.round(value * 100)) }), [number, t]);
+  const count = useCallback((value: number) => number(value, { max: 2 }), [number]);
 
   const decorName = useCallback(
     (id: string | null) => {

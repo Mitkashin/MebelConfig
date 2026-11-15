@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { derive, type PriceOverrides } from '@/engine/derive';
-import { requireModel } from '@/engine/models';
+import { getModel, requireModel } from '@/engine/models';
 import { distributeEqual, limits, normalise, resizeElement, scaleWidths, validate } from '@/engine/rules';
 import { defaultConfig } from '@/engine/share';
 import type { Config, Derived, ElementConfig, Issue, Notice } from '@/engine/types';
@@ -73,10 +73,12 @@ export const useConfigurator = create<State>((set, get) => {
     load: (config, notice) => apply(config, { past: [], future: [], errors: {}, notices: notice ? [notice] : [] }),
 
     commit: (next) => {
-      const issues = validate(next);
+      // Dependent values are brought back into range first (and reported), then the result is checked.
+      const model = getModel(next.model);
+      const { config, notices } = model ? normalise(next, model) : { config: next, notices: [] };
+      const issues = validate(config);
       if (issues.length > 0) return issues;
       const current = get().config;
-      const { config, notices } = normalise(next, requireModel(next.model));
       if (same(config, current)) return [];
       apply(config, { past: [...get().past, current].slice(-HISTORY_LIMIT), future: [], notices });
       return [];

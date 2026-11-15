@@ -59,24 +59,38 @@ Deliberate differences:
   underneath; 13 mm slide clearance each side; box height = front − 45 mm;
   box length = longest standard slide (250–550 in 50 mm steps) that fits
   10 mm short of the carcass depth.
-- Drawers need an overall depth of at least 290 mm with a back panel; the
-  option is disabled with an explanation below that.
+- Drawers need an overall depth of at least 285 mm with a back panel (282
+  without); the option is disabled with an explanation below that.
 - Elements with drawers have no shelves.
 
 ## Hardware quantities
-Hinges per door by height; one handle per door leaf or drawer front (none
-with push-to-open, which adds one push latch per leaf/front); 4 shelf pins
-per shelf; 2 wall brackets per element with 2 screws and 2 plugs each; one
-pair of slides per drawer; carcass screws 2 per joint (3 above 400 mm
-carcass depth); back nails every 150 mm of back perimeter; one flap stay per
-bottom-hinged door.
+Matched to the shopping list the reference generated for its default (see
+reference-analysis 5a): hinges per door by height; one handle per door leaf
+or drawer front (a push latch each with push-to-open); 4 shelf pins per
+shelf; 2 wall brackets per element; screws 3.5×16 (4 per hinge, 8 per pair of
+slides), 4×30 (4 per carcass for the top, 2 per bracket, 4 per drawer front),
+carcass screws 4×50 (2 per joint, 3 above 400 mm carcass depth) with a cap
+each; 2 screws per handle (1 per knob); a nail every 150 mm of back
+perimeter; 2 wall plugs per bracket. Screws, caps, nails and plugs carry a
+10 % reserve. Our own additions: one pair of slides per drawer, one flap stay
+per bottom-hinged door. Unlike the reference, hardware is priced as separate
+lines in the total.
 
 ## Other
 - Wall-hung at 400 mm above the floor in the 3D scene (as in the reference);
   this is presentation only.
-- Grain: wood decors run along the part's length; doors and drawer fronts are
-  cut with grain vertical/horizontal respectively so fronts match across the
-  row. Solid decors may rotate on the sheet.
+- Grain: wood decors run along the part's length. Doors and drawer fronts are
+  cut with vertical grain so fronts match across the row; a front too wide to
+  fit across the sheet (over 2050 mm) is turned. Parts in solid decors may
+  rotate on the sheet.
+- Language at `/`: the browser's language picks English or Macedonian;
+  anything else gets Macedonian. Numbers and dates are formatted by explicit
+  per-language rules (1.650 / 165,0 cm / 15.11.2026 in Macedonian), not by
+  the browser's locale data, so every browser shows the same text.
+- Changing a dimension brings dependent values back into range (fewer
+  shelves or drawers, double doors to single) and shows a notice with Undo.
+- The reference's "your own prices" recalculation is included; its
+  shopping-list tick-off, tool list and half-sheet purchase option are not.
 - The AI room render, assembly instructions and workshop picker of the
   reference are out of scope (account/server features that are not part of
   the configurator's control inventory).

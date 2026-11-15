@@ -6,7 +6,6 @@ import { useMemo, useState } from 'react';
 import { requireModel } from '@/engine/models';
 import { rowColor, useFormat } from '@/lib/format';
 import { useConfigurator } from '@/store/configurator';
-import { cx } from '../ui/controls';
 
 function Placeholder({ text }: { text: string }) {
   return (
@@ -21,7 +20,9 @@ const Scene = dynamic(() => import('./Scene'), { ssr: false });
 
 const NONE: string[] = [];
 
-const toolButton = 'rounded-full border border-line bg-surface/95 px-3 py-1.5 text-sm font-medium shadow-sm backdrop-blur transition hover:border-accent hover:text-accent';
+const toolBase = 'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium sm:px-3 sm:py-1.5 sm:text-sm shadow-sm backdrop-blur transition disabled:cursor-not-allowed disabled:opacity-50';
+const toolOff = `${toolBase} border-line bg-surface/95 hover:border-accent hover:text-accent`;
+const toolOn = `${toolBase} border-accent bg-accent text-white`;
 
 export function Viewer() {
   const t = useTranslations('viewer');
@@ -73,7 +74,7 @@ export function Viewer() {
 
   return (
     <div
-      className="relative size-full overflow-hidden rounded-2xl border border-line bg-[#ecebe6]"
+      className="relative size-full overflow-hidden rounded-2xl border border-line bg-[#f1efea]"
       data-testid="viewer"
       data-ready={ready ? '1' : '0'}
       data-part-count={derived.parts.length}
@@ -105,24 +106,24 @@ export function Viewer() {
         onReady={() => setReady(true)}
         fallback={<Placeholder text={t('unsupported')} />}
       />
-      <div className="no-print absolute top-3 right-3 left-3 z-10 flex flex-wrap justify-end gap-2">
+      <div className="no-print absolute right-2 bottom-2 left-2 z-10 flex gap-1.5 overflow-x-auto sm:top-3 sm:right-3 sm:bottom-auto sm:left-3 sm:flex-wrap sm:justify-end sm:gap-2 sm:overflow-visible">
         {hasFronts && (
-          <button type="button" className={cx(toolButton, doorsOpen && 'border-accent bg-accent text-white hover:text-white')} aria-pressed={doorsOpen} disabled={exploded} onClick={() => toggle('doorsOpen')} data-testid="toggle-doors">
+          <button type="button" className={doorsOpen ? toolOn : toolOff} aria-pressed={doorsOpen} disabled={exploded} onClick={() => toggle('doorsOpen')} data-testid="toggle-doors">
             {doorsOpen ? t('closeFronts') : t('openFronts')}
           </button>
         )}
-        <button type="button" className={cx(toolButton, exploded && 'border-accent bg-accent text-white hover:text-white')} aria-pressed={exploded} onClick={() => toggle('exploded')} data-testid="toggle-exploded">
+        <button type="button" className={exploded ? toolOn : toolOff} aria-pressed={exploded} onClick={() => toggle('exploded')} data-testid="toggle-exploded">
           {t('exploded')}
         </button>
-        <button type="button" className={cx(toolButton, showDimensions && 'border-accent bg-accent text-white hover:text-white')} aria-pressed={showDimensions} onClick={() => toggle('showDimensions')} data-testid="toggle-dimensions">
+        <button type="button" className={showDimensions ? toolOn : toolOff} aria-pressed={showDimensions} onClick={() => toggle('showDimensions')} data-testid="toggle-dimensions">
           {t('dimensions')}
         </button>
-        <button type="button" className={toolButton} onClick={() => setResetKey((k) => k + 1)}>
+        <button type="button" className={toolOff} onClick={() => setResetKey((k) => k + 1)}>
           {t('reset')}
         </button>
       </div>
       {selectedRow && (
-        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 rounded-full bg-surface/95 py-1 pr-3 pl-1 text-sm shadow" role="status" data-testid="selection-badge">
+        <div className="absolute top-2 left-2 z-10 flex items-center sm:top-auto sm:bottom-3 sm:left-3 gap-2 rounded-full bg-surface/95 py-1 pr-3 pl-1 text-sm shadow" role="status" data-testid="selection-badge">
           <span className="grid size-7 place-items-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: rowColor(selectedRow.no) }}>
             {selectedRow.no}
           </span>

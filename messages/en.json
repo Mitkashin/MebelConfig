@@ -4,7 +4,11 @@
   "units": {
     "cmValue": "{value} cm",
     "mmValue": "{value} mm",
-    "mValue": "{value} m"
+    "mValue": "{value} m",
+    "money": {
+      "MKD": "MKD {value}"
+    },
+    "percent": "{value}%"
   },
   "materials": {
     "hdf": "HDF board"

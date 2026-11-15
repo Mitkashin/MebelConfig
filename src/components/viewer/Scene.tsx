@@ -135,7 +135,8 @@ function buildMovers(p: Pick<SceneProps, 'parts' | 'handles' | 'config' | 'doors
     const lead = mover.parts.find((x) => x.role === 'door' || x.role === 'drawerFront') ?? (mover.parts[0] as Part);
     const movable = lead.role === 'door' || lead.role === 'drawerFront';
     const open = movable && !p.exploded && p.doorsOpen !== p.toggled.includes(mover.id);
-    const offset: Vec3 = p.exploded ? explodeOffset(lead, n) : [0, 0, 0];
+    // Everything also steps away from the wall, so the backs stay visible in front of it.
+    const offset: Vec3 = p.exploded ? explodeOffset(lead, n).map((v, k) => (k === 2 ? v + 280 : v)) as Vec3 : [0, 0, 0];
     if (lead.role === 'door') {
       const [x, y, z] = lead.position;
       const [w] = lead.size;
@@ -322,7 +323,7 @@ function frameCamera(camera: THREE.Camera, c: Controls | null, target: THREE.Vec
 }
 
 /** Frames the piece: keeps the viewing direction when the size changes, restores the default view on reset. */
-function CameraRig({ config, mountHeight, resetKey, controls }: Pick<SceneProps, 'config' | 'mountHeight' | 'resetKey'> & { controls: React.RefObject<Controls | null> }) {
+function CameraRig({ config, mountHeight, resetKey, exploded, doorsOpen, controls }: Pick<SceneProps, 'config' | 'mountHeight' | 'resetKey' | 'exploded' | 'doorsOpen'> & { controls: React.RefObject<Controls | null> }) {
   const get = useThree((s) => s.get);
   const size = useThree((s) => s.size);
   const lastReset = useRef(-1);
@@ -332,13 +333,13 @@ function CameraRig({ config, mountHeight, resetKey, controls }: Pick<SceneProps,
     const target = new THREE.Vector3(0, (mountHeight + height / 2) * MM, (depth / 2) * MM);
     const radius = 0.5 * Math.hypot(width, height, depth) * MM;
     const aspect = size.width / Math.max(1, size.height);
-    const fit = (radius / Math.sin((FOV * DEG) / 2)) * (aspect < 1 ? 1.15 / aspect : 1.15);
+    const fit = (radius / Math.sin((FOV * DEG) / 2)) * (aspect < 1 ? 1.15 / aspect : 1.15) * (exploded ? 1.5 : doorsOpen ? 1.22 : 1);
     const reset = lastReset.current !== resetKey;
     lastReset.current = resetKey;
     const state = get();
     frameCamera(state.camera, controls.current, target, fit, reset);
     state.invalidate();
-  }, [width, height, depth, mountHeight, resetKey, size.width, size.height, get, controls]);
+  }, [width, height, depth, mountHeight, resetKey, exploded, doorsOpen, size.width, size.height, get, controls]);
   return null;
 }
 
@@ -391,18 +392,20 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
       <Boundary fallback={props.fallback}>
         <Canvas
           shadows
+          flat
           frameloop="demand"
           dpr={[1, lowPower ? 1.5 : 2]}
           camera={{ fov: FOV, near: 0.05, far: 60, position: [1.6, 1.2, 3.6] }}
           gl={{ antialias: true, preserveDrawingBuffer: true }}
           onPointerMissed={() => onSelect(null)}
         >
-          <color attach="background" args={['#ecebe6']} />
-          <hemisphereLight args={['#ffffff', '#b9b3a6', 1.15]} />
+          <color attach="background" args={['#f1efea']} />
+          <hemisphereLight args={['#ffffff', '#cfc8ba', 2.1]} />
           <directionalLight
             position={[2.4, 4.2, 3.4]}
-            intensity={1.9}
+            intensity={1.5}
             castShadow
+            shadow-intensity={0.45}
             shadow-mapSize={lowPower ? [1024, 1024] : [2048, 2048]}
             shadow-bias={-0.0004}
             shadow-normalBias={0.02}
@@ -414,11 +417,11 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
           />
           <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
             <planeGeometry args={[30, 30]} />
-            <meshStandardMaterial color="#d6cfc1" roughness={0.95} />
+            <meshStandardMaterial color="#d8ccb6" roughness={0.95} />
           </mesh>
           <mesh position={[0, 6, -0.004]} receiveShadow>
             <planeGeometry args={[30, 12]} />
-            <meshStandardMaterial color="#efede8" roughness={1} />
+            <meshStandardMaterial color="#f4f2ee" roughness={1} />
           </mesh>
           <group position={[(-config.width / 2) * MM, mountHeight * MM, 0]} scale={MM}>
             {movers.map((spec) => (
@@ -444,7 +447,7 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
             minAzimuthAngle={-80 * DEG}
             maxAzimuthAngle={80 * DEG}
           />
-          <CameraRig config={config} mountHeight={mountHeight} resetKey={props.resetKey} controls={controls} />
+          <CameraRig config={config} mountHeight={mountHeight} resetKey={props.resetKey} exploded={props.exploded} doorsOpen={props.doorsOpen} controls={controls} />
           <Ready onReady={props.onReady} />
         </Canvas>
       </Boundary>
