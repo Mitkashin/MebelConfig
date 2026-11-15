@@ -49,6 +49,7 @@ export function buildCutList(parts: Part[]): CutRow[] {
     if (row) {
       row.qty += 1;
       row.partIds.push(part.id);
+      if (part.element !== null && !row.elements.includes(part.element)) row.elements.push(part.element);
     } else {
       rows.set(key, {
         key,
@@ -64,6 +65,7 @@ export function buildCutList(parts: Part[]): CutRow[] {
         edges: canonicalEdges(part.edges),
         ...(part.hinges ? { hinges: part.hinges } : {}),
         bandingPerPiece: bandingLength(part),
+        elements: part.element === null ? [] : [part.element],
         partIds: [part.id],
       });
     }
@@ -74,13 +76,17 @@ export function buildCutList(parts: Part[]): CutRow[] {
       b.length * b.width - a.length * a.width ||
       a.key.localeCompare(b.key),
   );
-  sorted.forEach((row, i) => (row.no = i + 1));
+  sorted.forEach((row, i) => {
+    row.no = i + 1;
+    row.elements.sort((a, b) => a - b);
+  });
   return sorted;
 }
 
 export interface CsvLabels {
   header: string[];
   role: (role: Role) => string;
+  elements: (row: CutRow) => string;
   material: (row: CutRow) => string;
   yes: string;
   no: string;
@@ -99,6 +105,7 @@ export function cutListCsv(rows: CutRow[], labels: CsvLabels, separator: ',' | '
       [
         r.no,
         labels.role(r.role),
+        labels.elements(r),
         r.qty,
         r.length,
         r.width,

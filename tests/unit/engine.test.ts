@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildParts } from '@/engine/build';
+import { buildParts, carcassWidthsFor } from '@/engine/build';
 import { DECORS, SHEET } from '@/engine/catalog';
 import { buildCutList, cutListCsv, isGrained } from '@/engine/cutlist';
 import { derive } from '@/engine/derive';
@@ -148,6 +148,7 @@ describe('invariants over random configurations', () => {
       const parts = buildParts(config);
       const n = config.elements.length;
       const allowance = n >= p.joinAllowanceFrom ? p.joinAllowance : 0;
+      const built = carcassWidthsFor(config.elements.map((e) => e.width), allowance);
       expect(config.elements.reduce((s, e) => s + e.width, 0), `seed ${seed}`).toBe(config.width);
       let clear = 0;
       let panels = 0;
@@ -156,14 +157,36 @@ describe('invariants over random configurations', () => {
         const bottom = parts.find((x) => x.id === `e${i}.bottom`)!;
         expect(sides).toHaveLength(2);
         const inner = sides[1]!.position[0] - (sides[0]!.position[0] + sides[0]!.size[0]);
-        // clear opening + two sides = carcass width = typed width minus the join allowance
+        // clear opening + two sides = carcass width; the carcass is never wider than the typed width
         expect(inner + 2 * p.board, `seed ${seed} el ${i}`).toBe(bottom.size[0]);
-        expect(bottom.size[0] + allowance).toBe(el.width);
+        expect(bottom.size[0]).toBe(built[i]);
+        expect(el.width - bottom.size[0]).toBeGreaterThanOrEqual(allowance);
+        expect(el.width - bottom.size[0]).toBeLessThanOrEqual(allowance + 1);
         clear += inner;
         panels += sides[0]!.size[0] + sides[1]!.size[0];
       });
-      expect(clear + panels + n * allowance, `seed ${seed}`).toBe(config.width);
+      // Whatever is not carcass is slack under the top, split between the two ends.
+      const slack = config.width - (clear + panels);
+      const first = parts.find((x) => x.id === 'e0.bottom')!;
+      const last = parts.find((x) => x.id === `e${n - 1}.bottom`)!;
+      expect(first.position[0] + (config.width - last.position[0] - last.size[0]), `seed ${seed}`).toBe(slack);
+      expect(Math.abs(first.position[0] - (config.width - last.position[0] - last.size[0]))).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('elements one millimetre apart get identical parts that share cut-list rows', () => {
+    const c = defaultConfig('sideboard-1');
+    const widths = distributeEqual(2000, 3);
+    expect(widths).toEqual([667, 667, 666]);
+    const rows = buildCutList(buildParts({ ...c, width: 2000, elements: c.elements.map((e, i) => ({ ...e, width: widths[i]! })) }));
+    const rails = rows.filter((r) => r.role === 'rail');
+    expect(rails).toHaveLength(1);
+    expect(rails[0]).toMatchObject({ qty: 6, length: 629, elements: [0, 1, 2] });
+    expect(rows.find((r) => r.role === 'door')).toMatchObject({ qty: 3, elements: [0, 1, 2] });
+    expect(rows.find((r) => r.role === 'top')!.elements).toEqual([]);
+    // Two millimetres is a real difference: separate rows, each naming its elements.
+    const apart = buildCutList(buildParts({ ...c, elements: [{ ...c.elements[0]!, width: 551 }, { ...c.elements[1]!, width: 551 }, { ...c.elements[2]!, width: 548 }] }));
+    expect(apart.filter((r) => r.role === 'rail').map((r) => r.elements)).toEqual([[0, 1], [2]]);
   });
 
   it('no parts overlap and all stay inside the outer dimensions', () => {
@@ -383,7 +406,7 @@ describe('sharing and export', () => {
   });
   it('writes a CSV row per cut-list row', () => {
     const rows = buildCutList(buildParts(defaultConfig('sideboard-1')));
-    const csv = cutListCsv(rows, { header: ['a', 'b'], role: (r) => r, material: (r) => r.material, yes: 'y', no: 'n' }, ';');
+    const csv = cutListCsv(rows, { header: ['a', 'b'], role: (r) => r, elements: (r) => r.elements.join(' '), material: (r) => r.material, yes: 'y', no: 'n' }, ';');
     expect(csv.trim().split('\r\n')).toHaveLength(rows.length + 1);
   });
   it('a grained decor never rotates on the sheet, a plain one may', () => {

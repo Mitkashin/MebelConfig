@@ -26,6 +26,18 @@ export function hingeCount(size: Vec3, hinge: Hinge, p: Pick<ModelParams, 'hinge
   return edge <= p.hingeMax2 ? 2 : edge <= p.hingeMax3 ? 3 : 4;
 }
 
+/**
+ * Width each carcass is built at. From three elements the join allowance
+ * keeps the row narrower than the top. Elements that differ by a single
+ * millimetre (what an uneven split such as 2000 / 3 leaves) are built at the
+ * narrower width, so their parts are identical and share cut-list rows; the
+ * spare millimetres join the slack under the ends of the top.
+ */
+export function carcassWidthsFor(widths: number[], allowance: number): number[] {
+  const narrowest = Math.min(...widths);
+  return widths.map((w) => (w - narrowest === 1 ? narrowest : w) - allowance);
+}
+
 /** Hinge side for an "auto" door: elements in the left half hinge left, the rest right. */
 export function autoHinge(index: number, count: number): Hinge {
   return index < Math.ceil(count / 2) ? 'left' : 'right';
@@ -92,7 +104,9 @@ export function buildParts(config: Config): Part[] {
   // Each element is its own carcass. From three elements up, every carcass is built slightly
   // narrower so the row never ends up wider than the top; the slack is split left and right.
   const allowance = n >= p.joinAllowanceFrom ? p.joinAllowance : 0;
-  let x0 = Math.floor((n * allowance) / 2);
+  const carcassWidths = carcassWidthsFor(config.elements.map((e) => e.width), allowance);
+  const slack = W - carcassWidths.reduce((s, w) => s + w, 0);
+  let x0 = Math.floor(slack / 2);
   const sideHeight = zone - 2 * t;
   const railWidth = Math.min(p.railWidth, Math.floor(cd / 2));
   const shelfDepth = cd - Math.min(p.shelfInset, Math.floor(cd / 2));
@@ -100,7 +114,7 @@ export function buildParts(config: Config): Part[] {
   const doorY = base + Math.floor((zone - t - doorHeight) / 2);
 
   config.elements.forEach((el, i) => {
-    const cw = el.width - allowance;
+    const cw = carcassWidths[i] as number;
     const id = (name: string) => `e${i}.${name}`;
 
     add({

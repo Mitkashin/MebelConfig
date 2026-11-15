@@ -361,7 +361,8 @@
         "material": "Material",
         "banding": "Edge banding",
         "note": "Note",
-        "grain": "Grain"
+        "grain": "Grain",
+        "elements": "Elements"
       },
       "csv": {
         "l1": "Band long edge 1",
@@ -371,7 +372,8 @@
         "banding": "Banding (m)",
         "yes": "yes",
         "no": "no"
-      }
+      },
+      "allElements": "all"
     },
     "sheets": {
       "note": "Guillotine layouts: every cut runs edge to edge. Saw kerf {kerf}, {trim} trimmed from each sheet edge. Numbers match the cut list.",

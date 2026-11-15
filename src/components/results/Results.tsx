@@ -36,6 +36,7 @@ function useLabels() {
     if (long + short === 4) return t('parts.bandAll');
     return [long ? t('parts.bandLong', { count: long }) : '', short ? t('parts.bandShort', { count: short }) : ''].filter(Boolean).join(' + ');
   };
+  const elements = (row: Pick<CutRow, 'elements'>) => (row.elements.length ? row.elements.map((e) => e + 1).join(', ') : t('parts.allElements'));
   const note = (row: CutRow) => [row.hinges ? t('parts.noteHinges', { count: row.hinges }) : '', row.grain ? t('parts.noteGrain') : ''].filter(Boolean).join(' · ');
   const hardwareName = (item: Pick<HardwareItem, 'key' | 'detail'>) => {
     const key = item.key.replace('hardware:', '');
@@ -54,7 +55,7 @@ function useLabels() {
     if (line.kind === 'cutting') return t('price.cutting');
     return hardwareName(line);
   };
-  return { t, tp, f, banding, note, hardwareName, unit, stockName, lineName };
+  return { t, tp, f, banding, elements, note, hardwareName, unit, stockName, lineName };
 }
 
 function EdgeIcon({ row }: { row: CutRow }) {
@@ -73,7 +74,7 @@ function EdgeIcon({ row }: { row: CutRow }) {
 }
 
 function PartsTable() {
-  const { t, tp, f, banding, note } = useLabels();
+  const { t, tp, f, banding, elements, note } = useLabels();
   const rows = useConfigurator((s) => s.derived.cutList);
   const selected = useConfigurator((s) => s.selected);
   const select = useConfigurator((s) => s.select);
@@ -88,10 +89,10 @@ function PartsTable() {
     <div className="grid gap-2">
       <p className="text-sm text-muted">{t('parts.hint')}</p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse" data-testid="cut-list">
+        <table className="w-full min-w-[720px] border-collapse" data-testid="cut-list">
           <thead>
             <tr className="border-b border-line">
-              {(['no', 'part', 'qty', 'length', 'width', 'thickness', 'material', 'banding', 'note'] as const).map((c) => (
+              {(['no', 'part', 'elements', 'qty', 'length', 'width', 'thickness', 'material', 'banding', 'note'] as const).map((c) => (
                 <th key={c} scope="col" className={cx(th, ['qty', 'length', 'width', 'thickness'].includes(c) && 'text-right')}>
                   {t(`parts.cols.${c}`)}
                 </th>
@@ -125,6 +126,7 @@ function PartsTable() {
                     </span>
                   </td>
                   <td className={cx(td, 'font-medium')}>{tp(row.role)}</td>
+                  <td className={cx(td, 'tabular-nums')} data-elements={row.elements.join(',')}>{elements(row)}</td>
                   <td className={cx(td, 'text-right tabular-nums')}>{row.qty}</td>
                   <td className={cx(td, 'text-right tabular-nums')}>{f.length(row.length)}</td>
                   <td className={cx(td, 'text-right tabular-nums')}>{f.length(row.width)}</td>
@@ -415,8 +417,8 @@ export function Results() {
   const fileBase = `${model.slug}-${config.width}x${config.height}x${config.depth}`;
 
   const csv = () => {
-    const header = [...(['no', 'part', 'qty', 'length', 'width', 'thickness', 'material', 'grain'] as const).map((c) => t(`parts.cols.${c}`)), t('parts.csv.l1'), t('parts.csv.l2'), t('parts.csv.w1'), t('parts.csv.w2'), t('parts.csv.banding')];
-    return cutListCsv(derived.cutList, { header, role: (r) => tp(r), material: (r) => f.material(r), yes: t('parts.csv.yes'), no: t('parts.csv.no') }, locale === 'mk' ? ';' : ',');
+    const header = [...(['no', 'part', 'elements', 'qty', 'length', 'width', 'thickness', 'material', 'grain'] as const).map((c) => t(`parts.cols.${c}`)), t('parts.csv.l1'), t('parts.csv.l2'), t('parts.csv.w1'), t('parts.csv.w2'), t('parts.csv.banding')];
+    return cutListCsv(derived.cutList, { header, role: (r) => tp(r), elements: (r) => labels.elements(r), material: (r) => f.material(r), yes: t('parts.csv.yes'), no: t('parts.csv.no') }, locale === 'mk' ? ';' : ',');
   };
 
   const pdf = async () => {
@@ -439,9 +441,9 @@ export function Results() {
         ],
         cutList: {
           title: t('tabs.parts'),
-          head: (['no', 'part', 'qty', 'length', 'width', 'thickness', 'material', 'banding', 'note'] as const).map((c) => t(`parts.cols.${c}`)),
-          rows: derived.cutList.map((r) => [String(r.no), tp(r.role), String(r.qty), f.mm(r.length), f.mm(r.width), f.mm(r.thickness), f.material(r), labels.banding(r), labels.note(r) || '–']),
-          numeric: [2, 3, 4, 5],
+          head: (['no', 'part', 'elements', 'qty', 'length', 'width', 'thickness', 'material', 'banding', 'note'] as const).map((c) => t(`parts.cols.${c}`)),
+          rows: derived.cutList.map((r) => [String(r.no), tp(r.role), labels.elements(r), String(r.qty), f.mm(r.length), f.mm(r.width), f.mm(r.thickness), f.material(r), labels.banding(r), labels.note(r) || '–']),
+          numeric: [3, 4, 5, 6],
         },
         sheets: {
           title: t('tabs.sheets'),
@@ -478,7 +480,7 @@ export function Results() {
   };
 
   const copyTable = async () => {
-    const lines = derived.cutList.map((r) => [r.no, tp(r.role), r.qty, r.length, r.width, r.thickness, f.material(r), labels.banding(r)].join('\t'));
+    const lines = derived.cutList.map((r) => [r.no, tp(r.role), labels.elements(r), r.qty, r.length, r.width, r.thickness, f.material(r), labels.banding(r)].join('\t'));
     await navigator.clipboard?.writeText(lines.join('\n'));
     flash('table');
   };

@@ -47,6 +47,13 @@ Deliberate differences:
 - **Reducing height clamps shelves and says so**; undo restores them.
 - **Join allowance** (1 mm per carcass from 3 elements) is kept, but the slack
   is split left/right instead of all on the right.
+- **Uneven splits build identical carcasses.** When elements differ by exactly
+  1 mm (2000 / 3 gives 667 / 667 / 666), the wider ones are built 1 mm
+  narrower so all their parts are identical and share cut-list rows; the
+  spare millimetres join the slack under the ends of the top. Differences of
+  2 mm or more are kept, as separate rows.
+- **The cut list names the elements** each row's parts belong to ("1, 2",
+  or "all" for the top); the same column is in the PDF and CSV.
 - Out-of-range typing behaves like the reference (value kept, error shown,
   model unchanged), but the message always states the limit and the range,
   and the field offers a one-click "use nearest allowed value".

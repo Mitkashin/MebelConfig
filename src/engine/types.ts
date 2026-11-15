@@ -152,6 +152,8 @@ export interface CutRow {
   hinges?: number;
   /** Edge banding for one piece, allowance included (mm). */
   bandingPerPiece: number;
+  /** Elements (0-based) the row's parts belong to; empty for parts shared by the whole piece, such as the top. */
+  elements: number[];
   partIds: string[];
 }
 
