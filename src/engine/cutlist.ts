@@ -15,7 +15,13 @@ export const ROLE_ORDER: Role[] = [
   'drawerBottom',
 ];
 
-const edgeKey = (e: Edges) => `${+e.l1}${+e.l2}${+e.w1}${+e.w2}`;
+/** A panel can be flipped end for end, so mirrored banding patterns are the same piece. */
+function canonicalEdges(e: Edges): Edges {
+  const long = Number(e.l1) + Number(e.l2);
+  const short = Number(e.w1) + Number(e.w2);
+  return { l1: long === 2, l2: long >= 1, w1: short === 2, w2: short >= 1 };
+}
+const edgeKey = (e: Edges) => `${Number(e.l1) + Number(e.l2)}${Number(e.w1) + Number(e.w2)}`;
 
 /** Does the decor direction matter for this part when it is laid on a sheet? */
 export function isGrained(part: Pick<Part, 'material' | 'decor'>): boolean {
@@ -32,14 +38,13 @@ export function bandingLength(part: Pick<Part, 'length' | 'width' | 'edges'>): n
 
 /**
  * Group identical parts into cut-list rows. Two parts share a row when role,
- * size, material, decor and banded edges all match. Mirrored edge patterns
- * (left end / right end) stay on separate rows so the workshop bands the
- * correct end.
+ * size, material, decor, the number of banded long and short edges, and the
+ * hinge drilling all match.
  */
 export function buildCutList(parts: Part[]): CutRow[] {
   const rows = new Map<string, CutRow>();
   for (const part of parts) {
-    const key = [part.role, part.length, part.width, part.thickness, part.material, part.decor ?? '-', edgeKey(part.edges)].join('|');
+    const key = [part.role, part.length, part.width, part.thickness, part.material, part.decor ?? '-', edgeKey(part.edges), part.hinges ?? 0, part.hinge === 'bottom' ? 'flap' : ''].join('|');
     const row = rows.get(key);
     if (row) {
       row.qty += 1;
@@ -56,7 +61,8 @@ export function buildCutList(parts: Part[]): CutRow[] {
         material: part.material,
         decor: part.decor,
         grain: isGrained(part),
-        edges: { ...part.edges },
+        edges: canonicalEdges(part.edges),
+        ...(part.hinges ? { hinges: part.hinges } : {}),
         bandingPerPiece: bandingLength(part),
         partIds: [part.id],
       });

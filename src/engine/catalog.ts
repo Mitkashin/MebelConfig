@@ -81,11 +81,14 @@ export const HARDWARE_PRICES: Record<string, number> = {
   pushLatch: 95,
   shelfPin: 4,
   wallBracket: 120,
-  wallPlug: 6,
   drawerSlide: 380,
-  carcassScrew: 3,
-  smallScrew: 1,
+  screw3516: 1,
+  screw430: 2,
+  screw450: 3,
+  screwCap: 1,
+  handleScrew: 2,
   backNail: 1,
+  wallPlug: 6,
 };
 
 export const HANDLE_PRICE_FACTOR: Record<HandleShape, number> = {

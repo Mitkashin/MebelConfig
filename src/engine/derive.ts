@@ -6,11 +6,9 @@ import { nest } from './nesting';
 import { carcassDepth, slideLength } from './rules';
 import type { Config, Derived, HardwareItem, NestResult, Part, Price, PriceLine } from './types';
 
-/** Hinges for one door: by the length of its hinged edge. */
-export function hingeCount(part: Part, max2: number, max3: number): number {
-  const edge = part.hinge === 'bottom' ? part.size[0] : part.size[1];
-  return edge <= max2 ? 2 : edge <= max3 ? 3 : 4;
-}
+const RESERVE = 0.1;
+/** Screws, caps and plugs are bought with a 10 % reserve, rounded up. */
+const withReserve = (n: number) => (n > 0 ? n + Math.ceil(n * RESERVE) : 0);
 
 /** Fittings needed to build the piece, derived from the same parts list as everything else. */
 export function buildHardware(config: Config, parts: Part[]): HardwareItem[] {
@@ -23,43 +21,37 @@ export function buildHardware(config: Config, parts: Part[]): HardwareItem[] {
   };
 
   const doors = parts.filter((x) => x.role === 'door');
-  const drawerFronts = parts.filter((x) => x.role === 'drawerFront');
+  const drawers = parts.filter((x) => x.role === 'drawerFront').length;
   const shelves = parts.filter((x) => x.role === 'shelf').length;
-  const backs = parts.filter((x) => x.role === 'back' || x.role === 'drawerBottom');
+  const nailed = parts.filter((x) => x.role === 'back' || x.role === 'drawerBottom');
   const elements = config.elements.length;
-  const fronts = doors.length + drawerFronts.length;
+  const fronts = doors.length + drawers;
+  const handles = fronts > 0 && model.features.handles && config.openingType === 'handles';
 
-  const hinges = doors.reduce((s, d) => s + hingeCount(d, p.hingeMax2, p.hingeMax3), 0);
+  const hinges = doors.reduce((s, d) => s + (d.hinges ?? 0), 0);
   push('hinge', hinges);
   push('flapStay', doors.filter((d) => d.hinge === 'bottom').length);
-
-  if (fronts > 0 && model.features.handles) {
-    if (config.openingType === 'handles') {
-      push('handle', fronts, 'pcs', { shape: config.handleShape, finish: config.handleFinish }, Math.round(price('handle') * HANDLE_PRICE_FACTOR[config.handleShape]));
-    } else {
-      push('pushLatch', fronts);
-    }
-  } else if (fronts > 0) {
+  if (handles) {
+    push('handle', fronts, 'pcs', { shape: config.handleShape, finish: config.handleFinish }, Math.round(price('handle') * HANDLE_PRICE_FACTOR[config.handleShape]));
+  } else {
     push('pushLatch', fronts);
   }
-
-  if (drawerFronts.length > 0) {
-    push('drawerSlide', drawerFronts.length, 'pair', { length: slideLength(carcassDepth(config, p), p) ?? 0 });
-  }
+  if (drawers > 0) push('drawerSlide', drawers, 'pair', { length: slideLength(carcassDepth(config, p), p) ?? 0 });
   push('shelfPin', shelves * 4);
   push('wallBracket', elements * 2);
-  push('wallPlug', elements * 4);
 
-  // Carcass: bottom to sides (2 joints, an extra screw on deep carcasses), rails to sides (4 joints),
-  // top fixed through the rails (4). Drawer box: 4 corner joints, plus 4 screws through the inner front.
+  // 3.5x16: four per hinge, eight per pair of slides, two per push latch.
+  push('screw3516', withReserve(hinges * 4 + drawers * 8 + (handles ? 0 : fronts * 2)));
+  // 4x30: top fixed through the rails (4 per carcass), wall brackets (2 each), drawer fronts (4 each).
+  push('screw430', withReserve(elements * 4 + elements * 2 * 2 + drawers * 4));
+  // 4x50: bottom to sides (2 joints) and rails to sides (4 joints) per carcass, 4 corner joints per drawer box.
   const perJoint = carcassDepth(config, p) > 400 ? 3 : 2;
-  push('carcassScrew', elements * (2 * perJoint + 4 * 2 + 4) + drawerFronts.length * (4 * 2 + 4));
-
-  const handleScrews = config.openingType === 'handles' && model.features.handles ? fronts * (config.handleShape === 'knob' ? 1 : 2) : 0;
-  push('smallScrew', hinges * 4 + elements * 2 * 2 + drawerFronts.length * 8 + handleScrews);
-
-  const nails = backs.reduce((s, b) => s + Math.ceil((2 * (b.length + b.width)) / 150), 0);
-  push('backNail', nails);
+  const carcassScrews = withReserve(elements * (2 * perJoint + 4 * 2) + drawers * 4 * 2);
+  push('screw450', carcassScrews);
+  push('screwCap', carcassScrews);
+  if (handles) push('handleScrew', withReserve(fronts * (config.handleShape === 'knob' ? 1 : 2)));
+  push('backNail', withReserve(nailed.reduce((s, b) => s + Math.ceil((2 * (b.length + b.width)) / 150), 0)));
+  push('wallPlug', withReserve(elements * 2 * 2));
   return items;
 }
 

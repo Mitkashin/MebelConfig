@@ -92,6 +92,27 @@ describe('defaults', () => {
     expect(parts.filter((x) => x.role === 'door').map((d) => d.hinge)).toEqual(['left', 'left', 'right']);
   });
 
+  it('matches the cut list, banding and fittings the reference generated for its default', () => {
+    // Read from the reference's results page for 165 x 65 x 35 cm, 3 elements, doors, 1 shelf each.
+    const d = derive(defaultConfig('sideboard-1'));
+    const rows = d.cutList.map((r) => [r.role, r.qty, r.length, r.width, r.thickness, Number(r.edges.l1) + Number(r.edges.l2), Number(r.edges.w1) + Number(r.edges.w2)]);
+    expect(rows).toEqual([
+      ['top', 1, 1650, 350, 18, 1, 2],
+      ['bottom', 1, 549, 325, 18, 1, 0],
+      ['bottom', 2, 549, 325, 18, 1, 1],
+      ['side', 6, 614, 325, 18, 1, 0],
+      ['rail', 6, 513, 80, 18, 1, 0],
+      ['shelf', 3, 513, 310, 18, 1, 0],
+      ['door', 3, 626, 547, 18, 2, 2],
+      ['back', 3, 632, 549, 3, 0, 0],
+    ]);
+    expect(d.parts).toHaveLength(25);
+    expect(d.sheetCount).toBe(3);
+    expect(d.bandingMeters).toBe(21.04);
+    const qty = Object.fromEntries(d.hardware.map((h) => [h.key, h.qty]));
+    expect(qty).toMatchObject({ hinge: 6, handle: 3, shelfPin: 12, wallBracket: 6, screw3516: 27, screw430: 27, screw450: 40, screwCap: 40, handleScrew: 7, backNail: 53, wallPlug: 14 });
+  });
+
   it('shelf limits follow the minimum spacing', () => {
     const p = requireModel('sideboard-1').params;
     expect(maxShelves({ height: 650, doubleTop: false }, p)).toBe(2);

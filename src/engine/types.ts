@@ -78,6 +78,8 @@ export interface Part {
   thickness: number;
   edges: Edges;
   hinge?: Hinge;
+  /** Number of hinges on a door (cup holes to drill on the hinged edge). */
+  hinges?: number;
   /** Parts sharing a group move together (a drawer box and its front). */
   group?: string;
 }
@@ -125,7 +127,10 @@ export interface CutRow {
   material: Material;
   decor: string | null;
   grain: boolean;
+  /** Canonical pattern: a panel can be flipped, so only the number of banded long and short edges matters. */
   edges: Edges;
+  /** Hinge cup holes per piece (doors only). */
+  hinges?: number;
   /** Edge banding for one piece, allowance included (mm). */
   bandingPerPiece: number;
   partIds: string[];

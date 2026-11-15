@@ -20,6 +20,12 @@ interface Spec {
   group?: string;
 }
 
+/** Hinges for a door: by the length of its hinged edge. */
+export function hingeCount(size: Vec3, hinge: Hinge, p: Pick<ModelParams, 'hingeMax2' | 'hingeMax3'>): number {
+  const edge = hinge === 'bottom' ? size[0] : size[1];
+  return edge <= p.hingeMax2 ? 2 : edge <= p.hingeMax3 ? 3 : 4;
+}
+
 /** Hinge side for an "auto" door: elements in the left half hinge left, the rest right. */
 export function autoHinge(index: number, count: number): Hinge {
   return index < Math.ceil(count / 2) ? 'left' : 'right';
@@ -62,7 +68,7 @@ export function buildParts(config: Config): Part[] {
       width: s.size[widthAxis],
       thickness: s.size[thicknessAxis],
       edges: { ...NO_EDGES, ...s.edges },
-      ...(s.hinge ? { hinge: s.hinge } : {}),
+      ...(s.hinge ? { hinge: s.hinge, hinges: hingeCount(s.size, s.hinge, p) } : {}),
       ...(s.group ? { group: s.group } : {}),
     });
   };

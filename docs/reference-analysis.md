@@ -10,10 +10,12 @@ controls; none of them are reused in our product.
 *canvas* = read from the `data-*` attributes the viewer writes on its
 `<canvas>`, *bundle* = read from the minified production chunks.
 
-> **Not verified:** the generated cut list itself. "Generiši dimenzije" opens a
-> sign-in dialog (free account = one generation, more by subscription). No
-> account was created. Sections 4 and 5 are reconstructed from the bundles and
-> are marked accordingly.
+> **Generated results:** generation is behind sign-in (a free account gets one
+> generation). The owner registered an account and the default configuration
+> was generated once in their Chrome; section 5a records what that showed.
+> Only the default configuration could be generated, and the sheet-layout tab
+> is a paid feature, so the nesting itself remains reconstructed from the
+> bundle.
 
 ## 1. Product and page structure
 
@@ -125,7 +127,7 @@ opening edge; knob 40 in and 45 down; edge profile spans the full door width.
 | AI render | "Generate image" asks a server for a rendered room picture (not explored; account feature) | UI |
 | Accessibility | Canvas is exposed as an image with a description | UI a11y tree |
 
-## 4. How parts are derived (reconstructed from the bundle)
+## 4. How parts are derived (bundle, confirmed by the generated cut list for the default)
 
 Parameters for this model: board 18, back 3, front gap 4, door height
 reduction 24, door width gap 2, top rail height 80, shelf front inset 15,
@@ -173,6 +175,49 @@ join allowance 1 per element when there are 3 or more elements.
 - Results also offer CSV, PDF, assembly steps and a workshop picker for
   sending the job to be cut.
 
+## 5a. Generated results for the default configuration (observed)
+
+Header: "25 parts · 3 sheets · utilisation 29 % · approx. 38 276 RSD", with
+Copy table, CSV, Print, PDF and Send-to-cutting actions. Five tabs:
+
+**Parts** — columns: part, quantity, length, width, thickness, edge banding,
+note; grouped Carcass / Shelves / Fronts / Back / Hardware. Each row has a
+coloured number that matches the highlight in the 3D view.
+
+| Part | Qty | Length × width × thickness | Banding | Note |
+|---|---|---|---|---|
+| Top | 1 | 1650 × 350 × 18 | one long + both short | |
+| Bottom, middle element | 1 | 549 × 325 × 18 | one long | |
+| Bottom, end element | 2 | 549 × 325 × 18 | one long + one short | |
+| Side | 6 | 614 × 325 × 18 | one long | |
+| Top rail | 6 | 513 × 80 × 18 | one long | |
+| Shelf | 3 | 513 × 310 × 18 | one long | |
+| Door | 3 | 626 × 547 × 18 | all four | 2 hinge cup holes Ø35 on the long edge |
+| Back | 3 | 632 × 549 × 3 | none | |
+| Hinges | 6 | | | 2, 3 or 4 per door by height |
+| Handles | 3 | | | one per door or drawer front |
+
+This matches section 4 exactly, including the 1 mm join allowance.
+
+**Sheets** — locked on the free plan (blurred preview, upsell to paid plans).
+
+**Quote** — total 38 276 RSD = body decor 1 sheet × 15 000 (52 % used) + front
+decor 1 sheet × 12 000 (18 %) + HDF 1 sheet × 2 500 (18 %) + edge band 21 m ×
+150 RSD/m = 3 155 + cutting 56.2 m × 100 RSD/m = 5 620. It also splits the
+total into "value of the piece" 19 202 and "unused material" 19 074 (50 %),
+and lets the customer type their own sheet, banding and cutting prices and
+recalculate. The 21 m equals Σ(banded edge + 30 mm) over all parts (21.04 m).
+
+**What to buy** — a tick-off shopping list with a 10 % reserve on screws,
+caps and plugs: hinges 6, handles 3, shelf pins 12 (4 per shelf), metal wall
+brackets 6 (2 per carcass); screws 3.5×16 ×27 (4 per hinge), 4×30 ×27 (12 for
+the top, 12 for the brackets), carcass screws 4×50 ×40 (2 per joint up to
+400 mm depth), handle screws ×7, HDF nails ×53 (48 for the backs), screw caps
+×40, wall plugs ×14; edge band per decor with 10 % reserve (14.5 m and 8 m);
+a tool list.
+
+**Assembly** — 38 illustrated steps with a part-labelling scheme, and a PDF.
+
 ## 6. Tech stack
 
 | Claim | Evidence |
@@ -189,8 +234,8 @@ join allowance 1 per element when there are 3 or more elements.
 
 ## 7. Weaknesses we can improve on
 
-1. **Cut list, sheets and exports are behind sign-in and credits**; no price is
-   visible while configuring.
+1. **Cut list and exports are behind sign-in and one free credit; sheet
+   layouts are paid-only**; no price is visible while configuring.
 2. **No shareable link** — state lives in localStorage and accounts only.
 3. **Width changes wipe custom element widths**; lowering the height silently
    removes shelves with no message and no undo.
