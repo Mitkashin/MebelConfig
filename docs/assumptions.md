@@ -61,6 +61,12 @@ Deliberate differences:
 - **Depth minimum is 150 mm** (reference: 50 mm, which leaves a 25 mm carcass).
 - **Changing the total width keeps element proportions** instead of resetting
   them to equal widths.
+- **Typed element widths are kept.** Once the customer types an element's
+  width, later edits to other elements (or to the total width) are absorbed
+  by the elements not yet typed. Only if those cannot take the change
+  without going below the minimum do the typed ones adjust too. "Let it
+  adjust" releases one element; Equalise, a new element count, undo and
+  redo release all.
 - **Reducing height clamps shelves and says so**; undo restores them.
 - **Join allowance** (1 mm per carcass from 3 elements) is kept, but the slack
   is split left/right instead of all on the right.

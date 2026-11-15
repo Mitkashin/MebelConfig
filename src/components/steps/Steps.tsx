@@ -38,6 +38,8 @@ function Elements() {
   const setElementCount = useConfigurator((s) => s.setElementCount);
   const setElementWidth = useConfigurator((s) => s.setElementWidth);
   const equalise = useConfigurator((s) => s.equalise);
+  const pinned = useConfigurator((s) => s.pinned);
+  const unpin = useConfigurator((s) => s.unpin);
   const n = config.elements.length;
   const equal = Math.max(...config.elements.map((e) => e.width)) - Math.min(...config.elements.map((e) => e.width)) <= 1;
   return (
@@ -51,9 +53,20 @@ function Elements() {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {config.elements.map((e, i) => (
-          <NumberField key={i} path={`elements.${i}.width`} label={t('widthOf', { n: i + 1 })} value={e.width} min={lim.elementWidth.min} max={lim.elementWidth.max} onCommit={(v) => setElementWidth(i, v)} />
+          <div key={i} className="grid gap-1">
+            <NumberField path={`elements.${i}.width`} label={t('widthOf', { n: i + 1 })} value={e.width} min={lim.elementWidth.min} max={lim.elementWidth.max} onCommit={(v) => setElementWidth(i, v)} />
+            {pinned.includes(i) && config.elements.length > 1 && (
+              <p className="flex items-center gap-2 text-xs text-muted" data-testid={`pinned-${i}`}>
+                <span>{t('pinned')}</span>
+                <button type="button" className="font-medium text-accent underline-offset-2 hover:underline" onClick={() => unpin(i)}>
+                  {t('unpin')}
+                </button>
+              </p>
+            )}
+          </div>
         ))}
       </div>
+      {config.elements.length > 2 && <p className="text-sm text-muted">{t('pinHelp')}</p>}
       <button type="button" className="justify-self-start rounded-full border border-line px-4 py-2 text-sm font-medium hover:border-accent hover:text-accent disabled:opacity-40" disabled={equal} onClick={equalise}>
         {t('equalise')}
       </button>

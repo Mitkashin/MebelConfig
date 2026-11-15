@@ -258,26 +258,48 @@ export function scaleWidths(widths: number[], total: number, min: number): numbe
   return scaled.every((w) => w >= min) ? scaled : distributeEqual(total, widths.length);
 }
 
-/**
- * Set one element's width and spread the difference evenly over the others,
- * so the widths still add up. Returns null when another element would fall
- * below the minimum.
- */
-export function resizeElement(widths: number[], index: number, width: number, min: number): number[] | null {
-  const others = widths.length - 1;
-  if (others === 0 || width < min) return null;
-  const delta = width - (widths[index] ?? 0);
-  const each = Math.trunc(delta / others);
-  let rest = delta - each * others;
+/** Spread `delta` (positive = take away) evenly over the elements at `indices`, a millimetre at a time for the remainder. */
+function spread(widths: number[], indices: number[], delta: number): number[] {
+  const next = [...widths];
+  const each = Math.trunc(delta / indices.length);
+  let rest = delta - each * indices.length;
   const step = Math.sign(rest);
-  const next = widths.map((w, i) => {
-    if (i === index) return width;
-    let value = w - each;
+  for (const i of indices) {
+    next[i] = (next[i] ?? 0) - each;
     if (rest !== 0) {
-      value -= step;
+      next[i] = (next[i] ?? 0) - step;
       rest -= step;
     }
-    return value;
-  });
-  return next.every((w) => w >= min) ? next : null;
+  }
+  return next;
+}
+
+/**
+ * Set one element's width and spread the difference over the others so the
+ * widths still add up. Elements the customer already sized (`pinned`) keep
+ * their width when that is possible; only when the free elements cannot
+ * absorb the change are the pinned ones adjusted too, and `released` says so.
+ * Returns null when no split keeps every element within its limits.
+ */
+export function resizeElement(
+  widths: number[],
+  index: number,
+  width: number,
+  min: number,
+  pinned: number[] = [],
+  max = Infinity,
+): { widths: number[]; released: boolean } | null {
+  if (widths.length < 2 || width < min || width > max) return null;
+  const delta = width - (widths[index] ?? 0);
+  const ok = (ws: number[]) => ws.every((w) => w >= min && w <= max);
+  const free = widths.map((_, i) => i).filter((i) => i !== index && !pinned.includes(i));
+  if (free.length > 0) {
+    const next = spread(widths, free, delta);
+    next[index] = width;
+    if (ok(next)) return { widths: next, released: false };
+  }
+  const others = widths.map((_, i) => i).filter((i) => i !== index);
+  const next = spread(widths, others, delta);
+  next[index] = width;
+  return ok(next) ? { widths: next, released: others.some((i) => pinned.includes(i)) } : null;
 }

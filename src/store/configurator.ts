@@ -24,6 +24,8 @@ interface State {
   /** Part ids highlighted in the viewer and the cut list. */
   selected: string[];
   notices: Notice[];
+  /** Elements whose width the customer typed; later edits leave them alone where possible. */
+  pinned: number[];
   /** Field path → issue, for inputs whose typed value was rejected. */
   errors: Record<string, Issue>;
 
@@ -34,6 +36,7 @@ interface State {
   setElementCount: (count: number) => Issue[];
   setElementWidth: (index: number, width: number) => Issue[];
   equalise: () => void;
+  unpin: (index: number) => void;
   patchElement: (index: number, patch: Partial<ElementConfig>) => Issue[];
   patch: (patch: Partial<Config>) => Issue[];
   undo: () => void;
@@ -68,9 +71,10 @@ export const useConfigurator = create<State>((set, get) => {
     showDimensions: false,
     selected: [],
     notices: [],
+    pinned: [],
     errors: {},
 
-    load: (config, notice) => apply(config, { past: [], future: [], errors: {}, notices: notice ? [notice] : [] }),
+    load: (config, notice) => apply(config, { past: [], future: [], errors: {}, pinned: [], notices: notice ? [notice] : [] }),
 
     commit: (next) => {
       // Dependent values are brought back into range first (and reported), then the result is checked.
@@ -85,12 +89,26 @@ export const useConfigurator = create<State>((set, get) => {
     },
 
     setDimension: (key, value) => {
-      const { config, commit } = get();
+      const { config, commit, pinned } = get();
       if (key !== 'width') return commit({ ...config, [key]: value });
       const p = requireModel(config.model).params;
-      // Keep the customer's proportions when the overall width changes.
-      const widths = scaleWidths(config.elements.map((e) => e.width), value, p.elementMin);
-      return commit({ ...config, width: value, elements: config.elements.map((e, i) => ({ ...e, width: widths[i] ?? e.width })) });
+      const current = config.elements.map((e) => e.width);
+      // Elements the customer sized keep their width; the others take up the change in proportion.
+      const free = current.map((_, i) => i).filter((i) => !pinned.includes(i));
+      let widths: number[] | null = null;
+      if (free.length > 0 && free.length < current.length) {
+        const fixed = current.reduce((s, w, i) => (pinned.includes(i) ? s + w : s), 0);
+        const scaled = scaleWidths(free.map((i) => current[i] as number), value - fixed, p.elementMin);
+        if (value - fixed >= free.length * p.elementMin && scaled.every((w) => w >= p.elementMin && w <= p.elementMax)) {
+          widths = [...current];
+          free.forEach((i, k) => (widths![i] = scaled[k] as number));
+        }
+      }
+      const release = widths === null && pinned.length > 0;
+      widths ??= scaleWidths(current, value, p.elementMin);
+      const issues = commit({ ...config, width: value, elements: config.elements.map((e, i) => ({ ...e, width: widths![i] ?? e.width })) });
+      if (issues.length === 0 && release) set({ pinned: [] });
+      return issues;
     },
 
     setElementCount: (count) => {
@@ -103,25 +121,32 @@ export const useConfigurator = create<State>((set, get) => {
       const widths = distributeEqual(config.width, count);
       const template = model.defaults.elements[0] as ElementConfig;
       const elements = widths.map((width, i) => ({ ...(config.elements[i] ?? { ...template, shelves: Math.min(template.shelves, lim.maxShelves) }), width }));
-      return commit({ ...config, elements });
+      const issues = commit({ ...config, elements });
+      if (issues.length === 0) set({ pinned: [] });
+      return issues;
     },
 
     setElementWidth: (index, width) => {
-      const { config, commit } = get();
+      const { config, commit, pinned } = get();
       const p = requireModel(config.model).params;
-      const widths = resizeElement(config.elements.map((e) => e.width), index, width, p.elementMin);
-      if (!widths) {
-        const max = config.width - (config.elements.length - 1) * p.elementMin;
-        return [{ code: 'elementMin', path: `elements.${index}.width`, params: { min: p.elementMin, max } }];
+      const result = resizeElement(config.elements.map((e) => e.width), index, width, p.elementMin, pinned, p.elementMax);
+      if (!result) {
+        const max = Math.min(p.elementMax, config.width - (config.elements.length - 1) * p.elementMin);
+        return [{ code: width > p.elementMax ? 'elementMax' : 'elementMin', path: `elements.${index}.width`, params: { min: p.elementMin, max } }];
       }
-      return commit({ ...config, elements: config.elements.map((e, i) => ({ ...e, width: widths[i] ?? e.width })) });
+      const issues = commit({ ...config, elements: config.elements.map((e, i) => ({ ...e, width: result.widths[i] ?? e.width })) });
+      if (issues.length === 0) set({ pinned: result.released ? [index] : [...pinned.filter((i) => i !== index), index] });
+      return issues;
     },
 
     equalise: () => {
       const { config, commit } = get();
       const widths = distributeEqual(config.width, config.elements.length);
       commit({ ...config, elements: config.elements.map((e, i) => ({ ...e, width: widths[i] ?? e.width })) });
+      set({ pinned: [] });
     },
+
+    unpin: (index) => set((s) => ({ pinned: s.pinned.filter((i) => i !== index) })),
 
     patchElement: (index, patch) => {
       const { config, commit } = get();
@@ -134,14 +159,14 @@ export const useConfigurator = create<State>((set, get) => {
       const { past, future, config } = get();
       const previous = past[past.length - 1];
       if (!previous) return;
-      apply(previous, { past: past.slice(0, -1), future: [config, ...future], notices: [], errors: {} });
+      apply(previous, { past: past.slice(0, -1), future: [config, ...future], notices: [], errors: {}, pinned: [] });
     },
 
     redo: () => {
       const { past, future, config } = get();
       const next = future[0];
       if (!next) return;
-      apply(next, { past: [...past, config], future: future.slice(1), notices: [], errors: {} });
+      apply(next, { past: [...past, config], future: future.slice(1), notices: [], errors: {}, pinned: [] });
     },
 
     setError: (path, issue) =>

@@ -30,3 +30,23 @@ test('an uneven width still gives one row per identical part, with the elements 
   await expect(page.getByTestId('cut-list').locator('td[data-elements="0,1,2"]')).toHaveCount(5);
   await page.screenshot({ path: 'docs/screenshots/18-cut-list-elements.png', fullPage: true });
 });
+
+test('a width typed for one element is kept when the next element is changed', async ({ page }) => {
+  await page.goto('/en/configurator/sideboard-1');
+  await page.locator('[data-testid="viewer"][data-ready="1"]').waitFor({ timeout: 60_000 });
+  await page.getByTestId('step-2').getByRole('button', { name: 'Elements' }).click();
+  const field = (n: number) => page.getByRole('textbox', { name: `Width of element ${n}`, exact: true });
+  await field(1).fill('53.8');
+  await field(1).blur();
+  await field(2).fill('50');
+  await field(2).blur();
+  await expect(field(1)).toHaveValue('53.8');
+  await expect(field(2)).toHaveValue('50.0');
+  await expect(field(3)).toHaveValue('61.2');
+  await expect(page.getByTestId('pinned-0')).toBeVisible();
+  await page.getByTestId('pinned-0').getByRole('button', { name: 'Let it adjust' }).click();
+  await field(3).fill('55');
+  await field(3).blur();
+  await expect(field(2)).toHaveValue('50.0');
+  await expect(field(1)).toHaveValue('60.0');
+});

@@ -135,7 +135,10 @@
       "count": "Number of elements",
       "maxNote": "This width fits up to {max, plural, one {# element} other {# elements}}; each must be at least {min} wide.",
       "widthOf": "Width of element {n}",
-      "equalise": "Equalise widths"
+      "equalise": "Equalise widths",
+      "pinned": "Kept at this width",
+      "unpin": "Let it adjust",
+      "pinHelp": "A width you type is kept; the other elements make up the difference. Equalise widths releases them all."
     },
     "fronts": {
       "title": "Fronts and shelves",

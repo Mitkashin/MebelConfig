@@ -393,9 +393,17 @@ describe('element width helpers', () => {
     expect(distributeEqual(1651, 3)).toEqual([551, 550, 550]);
   });
   it('resizes one element and spreads the difference', () => {
-    expect(resizeElement([550, 550, 550], 0, 700, 250)).toEqual([700, 475, 475]);
+    expect(resizeElement([550, 550, 550], 0, 700, 250)).toEqual({ widths: [700, 475, 475], released: false });
     expect(resizeElement([550, 550, 550], 0, 1200, 250)).toBeNull();
-    expect(resizeElement([550, 550, 550], 1, 551, 250)!.reduce((s, w) => s + w, 0)).toBe(1650);
+    expect(resizeElement([550, 550, 550], 1, 551, 250)!.widths.reduce((s, w) => s + w, 0)).toBe(1650);
+  });
+  it('keeps widths the customer already set', () => {
+    // Element 1 was set to 538; now element 2 is set to 500: only element 3 moves.
+    expect(resizeElement([538, 556, 556], 1, 500, 250, [0])).toEqual({ widths: [538, 500, 612], released: false });
+    // When the free elements cannot take the change, the pinned ones give way and the caller is told.
+    expect(resizeElement([700, 600, 350], 1, 800, 250, [0])).toEqual({ widths: [600, 800, 250], released: true });
+    expect(resizeElement([600, 600], 0, 700, 250, [1])).toEqual({ widths: [700, 500], released: true });
+    expect(resizeElement([400, 400, 400], 0, 500, 250, [], 450)).toBeNull();
   });
   it('scales proportionally and keeps the sum', () => {
     const scaled = scaleWidths([700, 475, 475], 1800, 250);
