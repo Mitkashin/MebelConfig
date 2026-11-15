@@ -13,7 +13,8 @@ export const shared = {
 export const webServer = {
   command: `npx next start -p ${PORT}`,
   url: `http://localhost:${PORT}/mk`,
-  reuseExistingServer: true,
+  // Always start from the current build: a server left over from an older build serves stale asset names.
+  reuseExistingServer: false,
   timeout: 120_000,
 };
 
