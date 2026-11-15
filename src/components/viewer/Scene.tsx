@@ -5,8 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Component, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { getDecor, HANDLE_FINISHES } from '@/engine/catalog';
-import { isGrained } from '@/engine/cutlist';
-import type { Axis, Config, Fitting, HandlePlacement, Part, Vec3 } from '@/engine/types';
+import type { Config, Fitting, HandlePlacement, Part, Vec3 } from '@/engine/types';
 import { rowColor } from '@/lib/format';
 
 const MM = 0.001;
@@ -34,45 +33,82 @@ export interface SceneProps {
   onReady: () => void;
 }
 
+const loader = new THREE.TextureLoader();
+const textures = new Map<string, THREE.Texture>();
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 
-/**
- * One shared material per colour, grain axis and highlight. Grain is drawn
- * procedurally in object space, so it follows the part and needs no texture
- * files: narrow bands across the two axes perpendicular to the grain.
- */
-function partMaterial(color: string, grain: Axis | null, highlight: string | null): THREE.MeshStandardMaterial {
-  const key = `${color}|${grain}|${highlight}`;
+/** One shared texture per decor image, loaded the first time a part uses it. */
+function decorTexture(url: string, onLoad: () => void): THREE.Texture {
+  let texture = textures.get(url);
+  if (!texture) {
+    texture = loader.load(url, onLoad);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    // Mirrored repeats hide the seams of swatch photos that were not made to tile.
+    texture.wrapS = THREE.MirroredRepeatWrapping;
+    texture.wrapT = THREE.MirroredRepeatWrapping;
+    texture.anisotropy = 8;
+    textures.set(url, texture);
+  }
+  return texture;
+}
+
+/** One shared material per decor and highlight. The colour is the swatch average, shown until the photo arrives. */
+function partMaterial(color: string, image: string | null, highlight: string | null, onLoad: () => void): THREE.MeshStandardMaterial {
+  const key = `${color}|${image}|${highlight}`;
   const cached = materials.get(key);
   if (cached) return cached;
-  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0 });
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0 });
+  if (image) {
+    const texture = decorTexture(image, () => {
+      material.color.set('#ffffff');
+      material.map = texture;
+      material.needsUpdate = true;
+      onLoad();
+    });
+    if (texture.image) {
+      material.color.set('#ffffff');
+      material.map = texture;
+    }
+  }
   if (highlight) {
     material.emissive = new THREE.Color(highlight);
-    material.emissiveIntensity = 0.6;
-  }
-  if (grain !== null) {
-    const names = ['x', 'y', 'z'];
-    const [a, b] = [0, 1, 2].filter((k) => k !== grain) as [number, number];
-    material.onBeforeCompile = (shader) => {
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vLocal;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocal = position;');
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vLocal;\nfloat grainHash(float n){ return fract(sin(n * 127.1) * 43758.5453); }')
-        .replace(
-          '#include <color_fragment>',
-          `#include <color_fragment>
-          float gu = vLocal.${names[a]} * 0.21 + vLocal.${names[b]} * 0.17;
-          float gb = floor(gu);
-          float gn = mix(grainHash(gb), grainHash(gb + 1.0), smoothstep(0.0, 1.0, fract(gu)));
-          float gs = sin(vLocal.${names[grain]} * 0.011 + gn * 6.2831) * 0.5 + 0.5;
-          diffuseColor.rgb *= 0.9 + 0.13 * gn + 0.03 * gs;`,
-        );
-    };
-    material.customProgramCacheKey = () => `grain-${grain}`;
+    material.emissiveIntensity = 0.55;
   }
   materials.set(key, material);
   return material;
+}
+
+/** Small, stable offset per part so neighbouring panels do not show the same piece of the photo. */
+function partOffset(id: string): [number, number] {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return [((h >>> 0) % 997) / 997, ((h >>> 10) % 991) / 991];
+}
+
+/**
+ * Box with texture coordinates in real-world units: one swatch image covers
+ * `tile` mm, and the image's vertical axis (the grain in the supplier photos)
+ * runs along the part's length, the same direction the cut list uses.
+ */
+function partGeometry(part: Part, tile: number): THREE.BoxGeometry {
+  const [sx, sy, sz] = part.size;
+  const geometry = new THREE.BoxGeometry(sx, sy, sz);
+  const pos = geometry.attributes.position as THREE.BufferAttribute;
+  const normal = geometry.attributes.normal as THREE.BufferAttribute;
+  const uv = geometry.attributes.uv as THREE.BufferAttribute;
+  const [ou, ov] = partOffset(part.id);
+  for (let i = 0; i < pos.count; i++) {
+    const n = [Math.abs(normal.getX(i)), Math.abs(normal.getY(i)), Math.abs(normal.getZ(i))];
+    const faceAxis = n.indexOf(Math.max(...n));
+    const inPlane = [0, 1, 2].filter((k) => k !== faceAxis);
+    // Grain (v) follows the part's length when that axis lies in this face; on the end faces it follows the longer side.
+    const v = inPlane.includes(part.lengthAxis) ? part.lengthAxis : (inPlane[1] as number);
+    const u = inPlane.find((k) => k !== v) as number;
+    const p = [pos.getX(i) + sx / 2, pos.getY(i) + sy / 2, pos.getZ(i) + sz / 2];
+    uv.setXY(i, (p[u] as number) / tile + ou, (p[v] as number) / tile + ov);
+  }
+  uv.needsUpdate = true;
+  return geometry;
 }
 
 const metal = new Map<string, THREE.MeshStandardMaterial>();
@@ -203,14 +239,19 @@ function Mover({ spec, children }: { spec: MoverSpec; children: ReactNode }) {
 }
 
 function PartMesh({ part, highlight, onSelect }: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
+  const invalidate = useThree((st) => st.invalidate);
   const decor = part.decor ? getDecor(part.decor) : undefined;
   const color = part.material === 'hdf' ? HDF_COLOR : (decor?.color ?? '#cccccc');
-  const material = partMaterial(color, isGrained(part) ? part.lengthAxis : null, highlight);
+  const material = partMaterial(color, part.material === 'hdf' ? null : (decor?.image ?? null), highlight, invalidate);
+  const tile = decor?.tile ?? 600;
+  const geometry = useMemo(() => partGeometry(part, tile), [part, tile]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
   const [x, y, z] = part.position;
   const [sx, sy, sz] = part.size;
   return (
     <mesh
       position={[x + sx / 2, y + sy / 2, z + sz / 2]}
+      geometry={geometry}
       material={material}
       castShadow
       receiveShadow
@@ -226,8 +267,7 @@ function PartMesh({ part, highlight, onSelect }: { part: Part; highlight: string
         document.body.style.cursor = '';
       }}
     >
-      <boxGeometry args={[sx, sy, sz]} />
-      <Edges threshold={15} color={highlight ?? '#1b2422'} transparent opacity={highlight ? 0.9 : 0.22} />
+      <Edges threshold={15} color={highlight ?? '#1b2422'} transparent opacity={highlight ? 0.9 : 0.16} />
     </mesh>
   );
 }

@@ -1,51 +1,58 @@
 import type { HandleFinish, HandleShape } from './types';
 
-/**
- * Placeholder catalogue and prices. Nothing here comes from a supplier:
- * codes, names (see messages) and colours are invented. Replace this file
- * when a real catalogue and price list are available.
- */
+/** Catalogue, sheet sizes and rates. Board decors and their prices come from the supplier (below); other rates are placeholders. */
+import decorData from './decors.json';
+
 export const CURRENCY = 'MKD';
 
-export type DecorCategory = 'wood' | 'material' | 'solid' | 'matt';
+export type DecorCategory = 'wood' | 'solid' | 'concrete' | 'stone' | 'marble' | 'textile' | 'fantasy';
+export type DecorBrand = 'egger' | 'kronospan';
 
 export interface Decor {
   id: string;
   code: string;
+  brand: DecorBrand;
   category: DecorCategory;
-  /** Base colour used for the swatch and the 3D material. */
+  /** Average colour of the swatch: used for the sheet diagrams and while the texture loads. */
   color: string;
   /** True when the decor has a direction, so parts may not rotate on the sheet. */
   grain: boolean;
   pricePerSheet: number;
+  inStock: boolean;
+  /** Product page at the supplier. */
+  source: string;
+  /** Swatch image (full size for the 3D texture, small for the picker). */
+  image: string;
+  thumb: string;
+  /** Real-world size (mm) one copy of the swatch image covers on a part. */
+  tile: number;
 }
 
-const PRICE: Record<DecorCategory, number> = { solid: 4200, wood: 4900, material: 4900, matt: 5600 };
+/**
+ * 18 mm melamine-faced chipboard as listed by Soloprom (soloprom.com.mk,
+ * category "Оплеменета иверка"), Egger and Kronospan, collected 15.11.2026.
+ * Codes, categories, prices per sheet and stock come from the supplier;
+ * images are the supplier's product photos. Refresh `decors.json` and
+ * `public/decors/` to update.
+ */
+export const DECORS: Decor[] = (decorData as { id: string; code: string; brand: DecorBrand; category: DecorCategory; color: string; price: number; inStock: boolean; source: string }[]).map((d) => ({
+  id: d.id,
+  code: d.code,
+  brand: d.brand,
+  category: d.category,
+  color: d.color,
+  grain: d.category === 'wood',
+  pricePerSheet: d.price,
+  inStock: d.inStock,
+  source: d.source,
+  image: `/decors/${d.id}.jpg`,
+  thumb: `/decors/thumb/${d.id}.jpg`,
+  tile: d.category === 'wood' ? 600 : 800,
+}));
 
-function make(category: DecorCategory, prefix: string, colors: string[]): Decor[] {
-  return colors.map((color, i) => {
-    const n = String(i + 1).padStart(2, '0');
-    return {
-      id: `${prefix.toLowerCase()}${n}`,
-      code: `${prefix}-${n}`,
-      category,
-      color,
-      grain: category === 'wood',
-      pricePerSheet: PRICE[category],
-    };
-  });
-}
-
-export const DECORS: Decor[] = [
-  ...make('wood', 'W', ['#c9ab86', '#b08a5e', '#8a5f3c', '#d9c3a3', '#6b4a33', '#a9785a', '#e3d2b8', '#54392a', '#bf9a6d', '#9a7b5f']),
-  ...make('material', 'M', ['#9a9c9a', '#c8c4bb', '#5d6063', '#b7a895', '#7d7468', '#d8d5cf']),
-  ...make('solid', 'S', ['#f6f4ef', '#ece5d6', '#d9d2c3', '#bfc4c2', '#8d9796', '#3f4a4d', '#1f2426', '#c9d3c5']),
-  ...make('matt', 'X', ['#f1efea', '#2a2d2f', '#5a6b62', '#37465b', '#8c5b4a', '#c7b8a4']),
-];
-
-export const DECOR_CATEGORIES: DecorCategory[] = ['wood', 'material', 'solid', 'matt'];
-export const DEFAULT_BODY_DECOR = 'w01';
-export const DEFAULT_FRONT_DECOR = 's02';
+export const DECOR_CATEGORIES: DecorCategory[] = ['wood', 'solid', 'concrete', 'stone', 'marble', 'textile', 'fantasy'];
+export const DEFAULT_BODY_DECOR = 'h1145-st10';
+export const DEFAULT_FRONT_DECOR = 'w1000-st9';
 
 const DECOR_BY_ID = new Map(DECORS.map((d) => [d.id, d]));
 export function getDecor(id: string): Decor | undefined {

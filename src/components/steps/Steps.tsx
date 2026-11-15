@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { DECOR_CATEGORIES, DECORS, getDecor, HANDLE_FINISHES, HANDLE_SHAPES, type Decor, type DecorCategory } from '@/engine/catalog';
+import { DECOR_CATEGORIES, DECORS, getDecor, HANDLE_FINISHES, HANDLE_SHAPES, type Decor, type DecorBrand, type DecorCategory } from '@/engine/catalog';
 import { requireModel } from '@/engine/models';
 import { drawerDepthMin, elementMaxShelves, frontZone, limits, railHeightMin, shelfSpacing } from '@/engine/rules';
 import type { Front, HandleFinish, Mount, Opening } from '@/engine/types';
@@ -137,33 +137,29 @@ function Fronts() {
 
 function Swatch({ decor, size = 'size-12' }: { decor: Decor; size?: string }) {
   return (
-    <span
-      className={cx('block rounded-lg border border-black/10', size)}
-      style={{
-        backgroundColor: decor.color,
-        backgroundImage: decor.grain ? 'repeating-linear-gradient(90deg, rgba(0,0,0,0.07) 0 1px, transparent 1px 5px, rgba(255,255,255,0.08) 5px 6px, transparent 6px 11px)' : undefined,
-      }}
-      aria-hidden="true"
-    />
+    // eslint-disable-next-line @next/next/no-img-element -- small static swatches; the optimiser adds nothing here
+    <img src={decor.thumb} alt="" loading="lazy" decoding="async" width={160} height={160} className={cx('block rounded-lg border border-black/10 object-cover', size)} style={{ backgroundColor: decor.color }} />
   );
 }
 
 function DecorPicker({ slot }: { slot: 'bodyDecor' | 'frontDecor' }) {
   const t = useTranslations('steps.colours');
+  const tb = useTranslations();
   const f = useFormat();
   const value = useConfigurator((s) => s.config[slot]);
   const patch = useConfigurator((s) => s.patch);
   const current = getDecor(value);
   const [category, setCategory] = useState<DecorCategory>(current?.category ?? 'wood');
+  const [brand, setBrand] = useState<'all' | DecorBrand>('all');
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(PAGE);
   const [copied, setCopied] = useState(false);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return DECORS.filter((d) => (q ? `${d.code} ${f.decorName(d.id)}`.toLowerCase().includes(q) : d.category === category));
-  }, [query, category, f]);
-  const counts = useMemo(() => Object.fromEntries(DECOR_CATEGORIES.map((c) => [c, DECORS.filter((d) => d.category === c).length])), []);
+    return DECORS.filter((d) => (brand === 'all' || d.brand === brand) && (q ? `${d.code} ${d.code.replace(/\s/g, '')} ${f.decorName(d.id)}`.toLowerCase().includes(q) : d.category === category));
+  }, [query, category, brand, f]);
+  const counts = useMemo(() => Object.fromEntries(DECOR_CATEGORIES.map((c) => [c, DECORS.filter((d) => d.category === c && (brand === 'all' || d.brand === brand)).length])), [brand]);
   const label = slot === 'bodyDecor' ? t('body') : t('front');
 
   return (
@@ -180,9 +176,18 @@ function DecorPicker({ slot }: { slot: 'bodyDecor' | 'frontDecor' }) {
           setShown(PAGE);
         }}
       />
+      <Segmented
+        label={t('brand')}
+        value={brand}
+        options={(['all', 'egger', 'kronospan'] as const).map((b) => ({ value: b, label: b === 'all' ? t('allBrands') : tb(`brands.${b}`) }))}
+        onChange={(b) => {
+          setBrand(b);
+          setShown(PAGE);
+        }}
+      />
       {!query && (
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('category')}>
-          {DECOR_CATEGORIES.map((c) => (
+          {DECOR_CATEGORIES.filter((c) => (counts[c] ?? 0) > 0).map((c) => (
             <button
               key={c}
               type="button"
@@ -209,8 +214,10 @@ function DecorPicker({ slot }: { slot: 'bodyDecor' | 'frontDecor' }) {
               type="button"
               role="radio"
               aria-checked={d.id === value}
-              aria-label={f.decorName(d.id)}
-              className={cx('grid justify-items-start gap-1 rounded-xl border p-1.5 text-left', d.id === value ? 'border-accent ring-2 ring-accent/30' : 'border-line hover:border-accent')}
+              aria-label={d.inStock ? f.decorName(d.id) : t('outOfStockLabel', { name: f.decorName(d.id) })}
+              disabled={!d.inStock}
+              title={d.inStock ? undefined : t('outOfStock')}
+              className={cx('grid justify-items-start gap-1 rounded-xl border p-1.5 text-left disabled:cursor-not-allowed disabled:opacity-45', d.id === value ? 'border-accent ring-2 ring-accent/30' : 'border-line hover:border-accent')}
               onClick={() => patch({ [slot]: d.id })}
             >
               <Swatch decor={d} size="h-12 w-full" />
@@ -229,6 +236,9 @@ function DecorPicker({ slot }: { slot: 'bodyDecor' | 'frontDecor' }) {
         <p className="flex flex-wrap items-center gap-2 text-sm">
           <Swatch decor={current} size="size-5" />
           <span>{t('selected', { slot: label, name: f.decorName(current.id) })}</span>
+          <a href={current.source} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-accent underline-offset-2 hover:underline">
+            {t('atSupplier')}
+          </a>
           <button
             type="button"
             className="rounded-full border border-line px-2 py-0.5 text-xs hover:border-accent"

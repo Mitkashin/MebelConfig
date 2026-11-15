@@ -54,12 +54,12 @@ export function useFormat() {
     (id: string | null) => {
       if (!id) return t('materials.hdf');
       const decor = getDecor(id);
-      return decor ? t('decorLabel', { code: decor.code, name: t(`decors.${id}` as 'decors.w01') }) : id;
+      return decor ? t('decorLabel', { brand: t(`brands.${decor.brand}`), code: decor.code }) : id;
     },
     [t],
   );
 
-  const decorShort = useCallback((id: string) => t(`decors.${id}` as 'decors.w01'), [t]);
+  const decorShort = useCallback((id: string) => { const d = getDecor(id); return d ? t(`brands.${d.brand}`) : ''; }, [t]);
 
   const material = useCallback(
     (row: Pick<CutRow, 'material' | 'decor'>) => (row.material === 'hdf' ? t('materials.hdf') : decorName(row.decor)),

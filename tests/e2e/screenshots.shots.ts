@@ -16,8 +16,8 @@ const SHOTS: { name: string; config: Config; click?: string[]; locale?: string; 
       width: 2100,
       height: 800,
       depth: 420,
-      frontDecor: 'x03',
-      bodyDecor: 'w03',
+      frontDecor: 'u540-st9',
+      bodyDecor: 'h1180-st37',
       handleShape: 'bar320',
       handleFinish: 'black',
       elements: [
@@ -37,8 +37,8 @@ const SHOTS: { name: string; config: Config; click?: string[]; locale?: string; 
       height: 500,
       depth: 450,
       doubleTop: true,
-      bodyDecor: 's06',
-      frontDecor: 'w01',
+      bodyDecor: 'u961-st7',
+      frontDecor: 'h3303-st10',
       handleShape: 'edge',
       elements: [
         { ...el, width: 800, doors: 2, shelves: 1 },
@@ -55,7 +55,7 @@ const SHOTS: { name: string; config: Config; click?: string[]; locale?: string; 
   },
   {
     name: '06-tall-narrow-push',
-    config: { ...base, width: 700, height: 1800, depth: 300, openingType: 'push', bodyDecor: 'x04', frontDecor: 'x04', back: false, elements: [{ ...el, width: 350, shelves: 5 }, { ...el, width: 350, front: 'open', shelves: 6 }] },
+    config: { ...base, width: 700, height: 1800, depth: 300, openingType: 'push', bodyDecor: 'u708-st9', frontDecor: 'f186-st9', back: false, elements: [{ ...el, width: 350, shelves: 5 }, { ...el, width: 350, front: 'open', shelves: 6 }] },
   },
   { name: '07-open-sideboard', config: defaultConfig('open-sideboard-1') },
   { name: '14-wardrobe-open', config: defaultConfig('wardrobe-1'), click: ['toggle-doors'] },

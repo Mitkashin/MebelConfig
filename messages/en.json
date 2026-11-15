@@ -1,6 +1,6 @@
 {
   "brand": "PoMerka",
-  "decorLabel": "{code} · {name}",
+  "decorLabel": "{brand} {code}",
   "units": {
     "cmValue": "{value} cm",
     "mmValue": "{value} mm",
@@ -175,22 +175,30 @@
       "summary": "{body} / {front}",
       "body": "Body decor",
       "front": "Front decor",
-      "search": "Search by code or name",
+      "search": "Search by code, e.g. H1145",
       "searchFor": "Search: {slot}",
       "category": "Decor category",
       "categoryCount": "{name} ({count})",
       "categories": {
         "wood": "Wood",
-        "material": "Materials",
-        "solid": "Solid and white",
-        "matt": "Matt"
+        "solid": "Solid colours",
+        "concrete": "Concrete",
+        "stone": "Stone",
+        "marble": "Marble",
+        "textile": "Textile",
+        "fantasy": "Fantasy"
       },
       "none": "No decor matches the search.",
       "showMore": "Show {count} more",
       "selected": "{slot}: {name}",
       "copied": "Copied",
       "copyCode": "Copy code {code}",
-      "disclaimer": "Colours on screen are indicative. Check the real decor on a sample before ordering."
+      "disclaimer": "Decors and prices from Soloprom. Colours on screen are indicative: check the real board on a sample before ordering.",
+      "brand": "Manufacturer",
+      "allBrands": "All",
+      "outOfStock": "Out of stock at the supplier",
+      "outOfStockLabel": "{name} (out of stock)",
+      "atSupplier": "View at the supplier"
     },
     "details": {
       "title": "Details",
@@ -428,36 +436,8 @@
       "link": "Open this design again:"
     }
   },
-  "decors": {
-    "w01": "Natural oak",
-    "w02": "Honey oak",
-    "w03": "Walnut",
-    "w04": "Light ash",
-    "w05": "Dark walnut",
-    "w06": "Cherry",
-    "w07": "Bleached oak",
-    "w08": "Wenge",
-    "w09": "Golden beech",
-    "w10": "Smoked oak",
-    "m01": "Light concrete",
-    "m02": "Limestone",
-    "m03": "Graphite slate",
-    "m04": "Sandstone",
-    "m05": "Aged bronze",
-    "m06": "White marble",
-    "s01": "Snow white",
-    "s02": "Cream",
-    "s03": "Sand beige",
-    "s04": "Light grey",
-    "s05": "Stone grey",
-    "s06": "Anthracite",
-    "s07": "Black",
-    "s08": "Sage green",
-    "x01": "Matt white",
-    "x02": "Matt black",
-    "x03": "Matt forest green",
-    "x04": "Matt night blue",
-    "x05": "Matt terracotta",
-    "x06": "Matt cashmere"
+  "brands": {
+    "egger": "Egger",
+    "kronospan": "Kronospan"
   }
 }

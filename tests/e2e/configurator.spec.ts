@@ -6,14 +6,14 @@ const L = {
     width: 'Width', height: 'Height', steps: ['Dimensions', 'Elements', 'Fronts and shelves', 'Colours', 'Details'],
     elementCountUp: 'Increase Number of elements', element1: 'Width of element 1', equalise: 'Equalise widths',
     drawers: 'Drawers', open: 'Open', double: 'Double doors', shelvesUp: 'Increase Shelves', doubleTop: 'Double top (36 mm)',
-    knob: 'Round knob', black: 'Black', matt: /^Matt \(/, tabs: ['Cut list', 'Sheets', 'Price', 'Hardware'],
+    knob: 'Round knob', black: 'Black', matt: /^Concrete \(/, tabs: ['Cut list', 'Sheets', 'Price', 'Hardware'],
     name: 'Name', contact: 'Email or phone', send: 'Send inquiry', sheetLimit: /278\.0 cm/, nearest: /Use 278\.0 cm/, cyrillic: false,
   },
   mk: {
     width: 'Широчина', height: 'Висина', steps: ['Димензии', 'Елементи', 'Фронтови и полици', 'Бои', 'Детали'],
     elementCountUp: 'Зголеми: Број на елементи', element1: 'Широчина на елемент 1', equalise: 'Изедначи ги широчините',
     drawers: 'Фиоки', open: 'Отворено', double: 'Двокрилна', shelvesUp: 'Зголеми: Полици', doubleTop: 'Двојна горна плоча (36 mm)',
-    knob: 'Тркалезно копче', black: 'Црна', matt: /^Мат \(/, tabs: ['Листа за кроење', 'Табли', 'Цена', 'Оков'],
+    knob: 'Тркалезно копче', black: 'Црна', matt: /^Бетон \(/, tabs: ['Листа за кроење', 'Табли', 'Цена', 'Оков'],
     name: 'Име', contact: 'Е-пошта или телефон', send: 'Испрати барање', sheetLimit: /278,0 cm/, nearest: /Постави 278,0 cm/, cyrillic: true,
   },
 } as const;
@@ -67,9 +67,9 @@ for (const locale of ['mk', 'en'] as const) {
 
     // Step 4: body and front decors, the front one through a category filter.
     await page.getByTestId('step-4').getByRole('button', { name: t.steps[3] }).click();
-    await page.getByTestId('decor-bodyDecor').getByRole('radio', { name: /W-03/ }).click();
+    await page.getByTestId('decor-bodyDecor').getByRole('radio', { name: /H1180 ST37/ }).click();
     await page.getByTestId('decor-frontDecor').getByRole('radio', { name: t.matt }).click();
-    await page.getByTestId('decor-frontDecor').getByRole('radio', { name: /X-03/ }).click();
+    await page.getByTestId('decor-frontDecor').getByRole('radio', { name: /F186 ST9/ }).click();
 
     // Step 5: double top, knob handles in black.
     await page.getByTestId('step-5').getByRole('button', { name: t.steps[4] }).click();

@@ -3,7 +3,6 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import mk from '../../messages/mk.json';
-import { DECORS } from '@/engine/catalog';
 import { formatDate, formatNumber } from '@/lib/numbers';
 
 type Tree = { [key: string]: string | Tree };
@@ -29,7 +28,7 @@ describe('message catalogues', () => {
   });
 
   it('Macedonian texts are Cyrillic', () => {
-    const latinOnly = ['brand', 'decorLabel', 'header.languages.en', 'steps.dimensions.summary', 'steps.colours.summary', 'steps.colours.categoryCount', 'steps.colours.selected', 'summary.handleValue', 'viewer.selected', 'results.stockName', 'results.sheets.dims', 'results.units.m', 'results.export.pdf', 'results.export.csv'];
+    const latinOnly = ['brand', 'decorLabel', 'brands.egger', 'brands.kronospan', 'header.languages.en', 'steps.dimensions.summary', 'steps.colours.summary', 'steps.colours.categoryCount', 'steps.colours.selected', 'summary.handleValue', 'viewer.selected', 'results.stockName', 'results.sheets.dims', 'results.units.m', 'results.export.pdf', 'results.export.csv'];
     for (const [key, text] of Object.entries(M)) {
       if (latinOnly.includes(key) || (key.startsWith('units.') && key !== 'units.money.MKD')) continue;
       expect(/[Ѐ-ӿ]/.test(text), `${key}: ${text}`).toBe(true);
@@ -43,13 +42,6 @@ describe('message catalogues', () => {
     for (const [key, text] of [...Object.entries(E), ...Object.entries(M)]) {
       expect(letters.test(text), `${key}: ${text}`).toBe(false);
       expect(words.test(text), `${key}: ${text}`).toBe(false);
-    }
-  });
-
-  it('name every decor in the catalogue', () => {
-    for (const decor of DECORS) {
-      expect(E[`decors.${decor.id}`], decor.id).toBeTruthy();
-      expect(M[`decors.${decor.id}`], decor.id).toBeTruthy();
     }
   });
 

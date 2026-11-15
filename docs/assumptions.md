@@ -14,24 +14,41 @@ engine or the UI.
 | After the cut list | Download PDF, download CSV, copy share link, and a "send inquiry" form. The inquiry endpoint validates and logs the request; it does not send email. No payment. | `src/app/api/inquiry/route.ts` |
 | Accounts | None. "Save" stores named designs in the browser; the share link is the portable form. | `src/store/saved.ts` |
 
-## Materials and prices (all placeholders)
+## Materials and prices
 | Item | Value |
 |---|---|
-| Board | 18 mm melamine chipboard, 2800 × 2070 mm; 4 200 MKD/sheet for solid decors, 4 900 for wood and material decors, 5 600 for matt |
+| Board | 18 mm melamine chipboard, 2800 × 2070 mm; price per sheet from the supplier for each decor (see below) |
 | Back / drawer bottom | 3 mm HDF, 2800 × 2070 mm, 950 MKD/sheet |
 | Edge banding | 45 MKD/m applied, 30 mm allowance per banded edge |
 | Cutting | 30 MKD per metre of cut |
-| Hardware | Unit prices in `catalog.ts`; included in the price as separate lines |
+| Hardware | Unit prices in `catalog.ts` (placeholders); included in the price as separate lines |
 | Saw kerf / edge trim | 4 mm / 10 mm per side (same as the reference) |
 
 Whole sheets are charged. Prices are indicative and exclude delivery and
 assembly; the UI says so.
 
 ## Decor catalogue
-No supplier or licensed swatches were provided, so the catalogue is 30
-neutral placeholder decors with invented codes (W-xx wood, M-xx materials,
-S-xx solid, X-xx matt), drawn as flat colours with a procedural grain. No
-manufacturer names, codes or images are used.
+The decors are the owner's supplier's: all 183 decors of 18 mm
+melamine-faced chipboard listed by Soloprom (soloprom.com.mk, category
+"Оплеменета иверка": 103 Egger, 80 Kronospan), collected on 15.11.2026 with
+code, category, price per sheet, stock and the product photo. Stored in
+`src/engine/decors.json` and `public/decors/`.
+
+- **Prices** are Soloprom's listed price per 18 mm sheet and replace the
+  earlier placeholders; sheet size is assumed to be 2800 × 2070 mm for both
+  brands (not stated on the site).
+- **Names:** the site lists codes only, so decors are shown as brand + code
+  (e.g. "Egger H1145 ST10"), with a link to the product page.
+- **Out of stock** decors (one at collection time) are shown but cannot be
+  chosen.
+- **Textures:** each photo is mapped at real-world scale (one photo per
+  600 mm for wood, 800 mm otherwise), with the grain along the part's length
+  as in the cut list, mirrored at the repeats to hide seams. The photos are
+  600 × 600 px, so very close views look soft.
+- **Rights:** the photos belong to Soloprom and the manufacturers. Using
+  them on a public site needs their agreement.
+- To refresh: re-collect from the supplier site and replace `decors.json`
+  and `public/decors/` (full images and `thumb/`).
 
 ## Construction rules
 Taken from the reference where observed: 18 mm board, 3 mm back, 4 mm front

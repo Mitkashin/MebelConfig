@@ -75,6 +75,6 @@ model up automatically and run every invariant against it.
 
 ## Replace before going live
 
-Prices, decors and the brand name are placeholders (`docs/assumptions.md`).
+Board decors and their prices come from the supplier Soloprom (`src/engine/decors.json`, images in `public/decors/`); HDF, banding, cutting and hardware prices and the brand name are placeholders (`docs/assumptions.md`).
 The inquiry endpoint (`src/app/api/inquiry/route.ts`) validates and logs; wire
 it to email or a CRM.

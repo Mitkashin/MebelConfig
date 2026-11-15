@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildParts, carcassWidthsFor } from '@/engine/build';
 import { DECORS, SHEET } from '@/engine/catalog';
@@ -334,6 +335,24 @@ describe('validation', () => {
   });
 });
 
+describe('supplier decors', () => {
+  it('every decor has an image, a price and a known category', () => {
+    expect(DECORS.length).toBeGreaterThan(150);
+    for (const d of DECORS) {
+      expect(existsSync(`public${d.image}`), d.id).toBe(true);
+      expect(existsSync(`public${d.thumb}`), d.id).toBe(true);
+      expect(d.pricePerSheet, d.id).toBeGreaterThan(1000);
+      expect(d.color).toMatch(/^#[0-9a-f]{6}$/);
+    }
+    expect(new Set(DECORS.map((d) => d.id)).size).toBe(DECORS.length);
+    for (const m of MODELS) for (const id of [m.defaults.bodyDecor, m.defaults.frontDecor]) expect(DECORS.find((d) => d.id === id)?.inStock, id).toBe(true);
+  });
+  it('the sheet price comes from the chosen decor', () => {
+    const d = derive({ ...defaultConfig('sideboard-1'), bodyDecor: 'h1180-st37' });
+    expect(d.price.lines.find((l) => l.key === 'sheet:board|18|h1180-st37')?.unitPrice).toBe(10252);
+  });
+});
+
 describe('models', () => {
   it('every model has distinct rules and valid, buildable defaults', () => {
     expect(new Set(MODELS.map((m) => m.slug)).size).toBe(MODELS.length);
@@ -394,7 +413,7 @@ describe('sharing and export', () => {
     }
   });
   it('still opens links made before mounting and rails existed', () => {
-    const old = '1.' + Buffer.from(JSON.stringify(['sideboard-1', 1650, 650, 350, [[550, 'doors', 1, 1, 'auto', 2], [550, 'doors', 1, 1, 'auto', 2], [550, 'doors', 1, 1, 'auto', 2]], 'w01', 's02', 1, 0, 'handles', 'bar128', 'grey'])).toString('base64url');
+    const old = '1.' + Buffer.from(JSON.stringify(['sideboard-1', 1650, 650, 350, [[550, 'doors', 1, 1, 'auto', 2], [550, 'doors', 1, 1, 'auto', 2], [550, 'doors', 1, 1, 'auto', 2]], 'h1145-st10', 'w1000-st9', 1, 0, 'handles', 'bar128', 'grey'])).toString('base64url');
     expect(decodeConfig(old)).toEqual(defaultConfig('sideboard-1'));
   });
   it('rejects tampered links', () => {
@@ -410,7 +429,7 @@ describe('sharing and export', () => {
     expect(csv.trim().split('\r\n')).toHaveLength(rows.length + 1);
   });
   it('a grained decor never rotates on the sheet, a plain one may', () => {
-    const config = { ...defaultConfig('sideboard-1'), bodyDecor: 'w01', frontDecor: 's01' };
+    const config = { ...defaultConfig('sideboard-1'), bodyDecor: 'h1145-st10', frontDecor: 'w1000-st9' };
     const parts = buildParts(config);
     const result = nest(parts);
     const rotated = result.sheets.flatMap((s) => s.placements).filter((pl) => pl.rotated).map((pl) => parts.find((x) => x.id === pl.partId)!);
