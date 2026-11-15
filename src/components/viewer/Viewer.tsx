@@ -36,6 +36,7 @@ export function Viewer() {
   const selected = useConfigurator((s) => s.selected);
   const toggle = useConfigurator((s) => s.toggle);
   const select = useConfigurator((s) => s.select);
+  const selectCell = useConfigurator((s) => s.selectCell);
   const model = requireModel(config.model);
 
   const [resetKey, setResetKey] = useState(0);
@@ -57,6 +58,8 @@ export function Viewer() {
   const onSelect = (partId: string | null) => {
     if (!partId) return select([]);
     const part = derived.parts.find((p) => p.id === partId);
+    // Clicking a wardrobe compartment opens it in the compartment panel.
+    if (part && part.element !== null && part.cell !== undefined) selectCell([part.element, part.cell]);
     // Only the clicked part lights up; its cut-list row is still marked, and clicking the row shows all its parts.
     select([partId]);
     if (part && (part.role === 'door' || part.role === 'drawerFront') && !exploded) {

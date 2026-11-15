@@ -59,6 +59,24 @@ const SHOTS: { name: string; config: Config; click?: string[]; locale?: string; 
   },
   { name: '07-open-sideboard', config: defaultConfig('open-sideboard-1') },
   { name: '14-wardrobe-open', config: defaultConfig('wardrobe-1'), click: ['toggle-doors'] },
+  {
+    name: '19-wardrobe-glass-turned-plinth',
+    config: (() => {
+      const w = defaultConfig('wardrobe-1');
+      return {
+        ...w,
+        width: 1800,
+        plinth: { front: true, left: true, right: true },
+        glassTint: 'light' as const,
+        elements: [
+          { ...w.elements[0]!, width: 500, cells: w.elements[0]!.cells.map((c, k) => (k === 1 ? { ...c, turn: 'left' as const, rails: 0 as const, shelves: 4 } : c)) },
+          { ...w.elements[1]!, width: 800, cells: w.elements[1]!.cells.map((c, k) => (k === 0 ? { ...c, doors: 2 as const, glass: true } : k === 1 ? { ...c, doors: 2 as const, rails: 2 as const } : c)) },
+          { ...w.elements[2]!, width: 500 },
+        ],
+      };
+    })(),
+    click: ['toggle-doors'],
+  },
   { name: '15-standing-sideboard', config: defaultConfig('standing-sideboard-1') },
   { name: '16-chest-of-drawers-open', config: defaultConfig('drawer-sideboard-1'), click: ['toggle-doors'] },
   { name: '08-mobile', config: base, viewport: { width: 390, height: 844 } },

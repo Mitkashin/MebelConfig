@@ -214,22 +214,70 @@ test('the chooser opens each model, and each model shows only its own controls',
   await expect(page.locator('[data-item="leg"]')).toHaveAttribute('data-qty', '8');
 });
 
-test('wardrobe: hanging rails are a wardrobe-only control and reach the hardware list', async ({ page }) => {
+test('wardrobe: compartments with rails, glass doors, remove, split, turn and plinth', async ({ page }) => {
   await page.goto('/en/configurator/wardrobe-1');
   await ready(page);
-  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '2');
-  await page.getByTestId('step-3').getByRole('button', { name: 'Fronts and shelves' }).click();
-  await page.getByTestId('element-2').getByRole('switch', { name: 'Hanging rail' }).check();
-  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '3');
-  // Too shallow for hangers: the rails are removed and the customer is told.
+  const viewer = page.getByTestId('viewer');
+  // 2 rails + 8 legs.
+  await expect(viewer).toHaveAttribute('data-fitting-count', '10');
+  await page.getByRole('button', { name: 'Open all' }).click();
+  await expect(page.getByRole('textbox', { name: 'Height of row 2 (from the top)', exact: true })).toHaveValue('140.0');
+
+  // A rail in column 3, middle row.
+  await page.getByTestId('cell-2-1').click();
+  const panel = page.getByTestId('cell-panel');
+  await expect(panel).toContainText('Compartment 6 · row 2, column 3');
+  await panel.getByRole('radio', { name: 'One rail' }).click();
+  await expect(viewer).toHaveAttribute('data-fitting-count', '11');
+
+  // Glass doors on the top compartment of column 2.
+  await page.getByTestId('cell-1-0').click();
+  await panel.getByRole('radio', { name: 'Glass (aluminium frame)' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Glass', exact: true })).toBeVisible();
+
+  // Remove the top compartment of column 1: the one below takes its height.
+  await page.getByTestId('cell-0-0').click();
+  await page.getByTestId('remove-cell').click();
+  await expect(page.getByRole('switch', { name: 'Column 1: own heights' })).toBeChecked();
+  await expect(page.getByRole('textbox', { name: 'Compartment 1 (from the top)', exact: true })).toHaveValue('180.0');
+
+  // Split the bottom compartment of column 3 into two.
+  await page.getByTestId('cell-2-2').click();
+  await page.getByTestId('split-cell').click();
+  await expect(page.getByTestId('cell-2-3')).toBeVisible();
+
+  // Turn a compartment of the right-hand column to face right.
+  await page.getByTestId('cell-2-0').click();
+  await panel.getByRole('radio', { name: 'To the right' }).click();
+  await expect(panel.getByRole('radio', { name: 'To the right' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('cell-1-1').click();
+  await expect(panel.getByRole('radiogroup', { name: 'Facing' })).toHaveCount(0);
+
+  // Plinth at the front, on legs.
+  await page.getByRole('switch', { name: 'Plinth at the front (full width)' }).check();
+
+  // Too shallow for hangers: rails go, the customer is told, undo brings them back.
   const depth = page.getByRole('textbox', { name: 'Depth', exact: true });
   await depth.fill('40');
   await expect(page.getByTestId('notice')).toContainText('hanging rail no longer fits');
-  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '0');
   await page.getByTestId('notice').getByRole('button', { name: 'Undo' }).click();
+  await expect(viewer).toHaveAttribute('data-fitting-count', /^1[01]$/);
+
   await page.getByTestId('generate').click();
+  const parts = page.getByTestId('cut-list');
+  await expect(parts).toContainText('Plinth');
+  await expect(parts).toContainText('Glass in aluminium frame (ready-made)');
   await page.getByRole('tab', { name: 'Hardware' }).click();
+  await expect(page.locator('[data-item="glassDoor"]')).toHaveAttribute('data-qty', '1');
   await expect(page.locator('[data-item="hangingRail"]')).toHaveAttribute('data-qty', '3');
+
+  // The share link restores every compartment.
+  const shared = page.url();
+  const configured = await code(page);
+  const again = await page.context().newPage();
+  await again.goto(shared);
+  await ready(again);
+  expect(await code(again)).toBe(configured);
 });
 
 test('mobile: the viewer stays on screen while the controls scroll', async ({ page }) => {

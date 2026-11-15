@@ -124,11 +124,14 @@ their own limits and options, chosen by us:
 
 - **Legs:** two per carcass boundary (front and back), bought in; they are in
   the hardware list and the 3D view, not the cut list.
-- **Wardrobe:** columns only. The reference's wardrobe also stacks carcasses
-  in rows and offers glass doors; neither is built. A hanging rail needs
-  900 mm of clear height under it and an overall depth of at least 450 mm;
-  shelves in a rail column stack from the top at 300 mm pitch. Standing
-  pieces taller than 1200 mm get one anti-tip wall bracket per element.
+- **Wardrobe:** rebuilt after the reference's wardrobe (reference-analysis
+  5b): a grid of separate carcasses, with every option in that table. Our
+  own choices: two rails split the compartment in half and leave no room for
+  shelves; with one rail, shelves go below 80 cm of hanging space; a turned
+  compartment cannot have drawers, hinges on the room side by default and
+  opens 90°; compartments are numbered row by row; a front plinth longer
+  than a sheet is cut in equal pieces; glass doors are priced at
+  9 500 MKD/m² (placeholder) and listed, not nested; minimum depth 30 cm.
 - **Handles on tall doors** (over 1300 mm) sit at about 1 m from the door's
   lower edge instead of near the top.
 - Share links made before these models existed still open.

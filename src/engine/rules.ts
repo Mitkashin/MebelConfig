@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getDecor, HANDLE_SHAPES } from './catalog';
+import { normaliseGrid, validateGrid } from './grid';
 import { getModel, type ModelDef, type ModelParams } from './models';
 import type { Config, ElementConfig, Issue, Notice } from './types';
 
@@ -11,6 +12,20 @@ const elementSchema = z.object({
   opening: z.enum(['auto', 'left', 'right', 'bottom']),
   drawers: z.number().int().min(1),
   rail: z.boolean(),
+  cells: z.array(
+    z.object({
+      height: z.number().int(),
+      front: z.enum(['doors', 'open', 'drawers']),
+      doors: z.union([z.literal(1), z.literal(2)]),
+      glass: z.boolean(),
+      opening: z.enum(['auto', 'left', 'right']),
+      shelves: z.number().int().min(0),
+      rails: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+      drawers: z.number().int().min(1),
+      turn: z.enum(['front', 'left', 'right']),
+    }),
+  ),
+  ownRows: z.boolean(),
 });
 
 /** Structural schema: types and enums only. Range rules live in `validate`, because they depend on the model. */
@@ -26,10 +41,15 @@ export const configSchema = z.object({
   doubleTop: z.boolean(),
   openingType: z.enum(['handles', 'push']),
   handleShape: z.enum(HANDLE_SHAPES as [string, ...string[]]),
-  handleFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown']),
+  handleFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown', 'graphite']),
   mount: z.enum(['wall', 'legs', 'floor']),
   legHeight: z.number().int().min(0),
-  legFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown']),
+  legFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown', 'graphite']),
+  rows: z.array(z.number().int()),
+  shelfSetback: z.number().int().min(0).max(100),
+  plinth: z.object({ front: z.boolean(), left: z.boolean(), right: z.boolean() }),
+  glassFrame: z.enum(['black', 'white']),
+  glassTint: z.enum(['clear', 'light', 'dark']),
 });
 
 type Zone = Pick<Config, 'height' | 'doubleTop' | 'mount' | 'legHeight'>;
@@ -148,7 +168,8 @@ export function validate(input: unknown): Issue[] {
   if (!getDecor(config.bodyDecor)) out.push(issue('invalid', 'bodyDecor'));
   if (!getDecor(config.frontDecor)) out.push(issue('invalid', 'frontDecor'));
 
-  if (config.width > p.widthMax) out.push(issue('sheetLimit', 'width', { max: p.widthMax }));
+  const grid = model.layout === 'grid';
+  if (config.width > p.widthMax) out.push(grid ? issue('range', 'width', { min: Math.max(p.widthMin, n * p.elementMin), max: p.widthMax }) : issue('sheetLimit', 'width', { max: p.widthMax }));
   else if (config.width < p.widthMin) out.push(issue('range', 'width', { min: p.widthMin, max: p.widthMax }));
   else if (config.width < n * p.elementMin)
     out.push(issue('widthForElements', 'width', { count: n, min: n * p.elementMin, max: p.widthMax }));
@@ -171,6 +192,13 @@ export function validate(input: unknown): Issue[] {
   const elementMax = Math.min(p.elementMax, config.width - (n - 1) * p.elementMin);
   if (config.width <= p.widthMax && config.width > n * p.elementMax)
     out.push(issue('range', 'width', { min: Math.max(p.widthMin, n * p.elementMin), max: n * p.elementMax }));
+  if (grid) {
+    config.elements.forEach((e, i) => {
+      if (e.width < p.elementMin) out.push(issue('elementMin', `elements.${i}.width`, { min: p.elementMin, max: elementMax }));
+      if (e.width > p.elementMax) out.push(issue('elementMax', `elements.${i}.width`, { min: p.elementMin, max: p.elementMax }));
+    });
+    return [...out, ...validateGrid(config, model)];
+  }
   config.elements.forEach((e, i) => {
     const at = `elements.${i}`;
     if (e.width < p.elementMin) out.push(issue('elementMin', `${at}.width`, { min: p.elementMin, max: elementMax }));
@@ -201,6 +229,7 @@ export function validate(input: unknown): Issue[] {
  * so the UI can tell the customer.
  */
 export function normalise(config: Config, model: ModelDef): { config: Config; notices: Notice[] } {
+  if (model.layout === 'grid') return normaliseGrid(config, model);
   const p = model.params;
   const notices: Notice[] = [];
   const drawersCap = maxDrawers(config, p);

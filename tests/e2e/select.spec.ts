@@ -43,8 +43,9 @@ test('a width typed for one element is kept when the next element is changed', a
   await expect(field(1)).toHaveValue('53.8');
   await expect(field(2)).toHaveValue('50.0');
   await expect(field(3)).toHaveValue('61.2');
-  await expect(page.getByTestId('pinned-0')).toBeVisible();
-  await page.getByTestId('pinned-0').getByRole('button', { name: 'Let it adjust' }).click();
+  await expect(page.getByTestId('lock-0')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('lock-2')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('lock-0').click();
   await field(3).fill('55');
   await field(3).blur();
   await expect(field(2)).toHaveValue('50.0');

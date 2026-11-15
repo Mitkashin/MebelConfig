@@ -96,7 +96,7 @@ function Notices() {
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 grid justify-items-center gap-2 px-3" aria-live="polite">
       {notices.map((n) => (
         <div key={n.code} className="pointer-events-auto flex max-w-xl items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-sm text-white shadow-xl" data-testid="notice">
-          <span>{n.code === 'doubleDoorsRemoved' ? t(n.code, { min: f.length(Number(n.params.min)) }) : n.code === 'restoredDefaults' || n.code === 'railRemoved' ? t(n.code) : t(n.code, { max: Number(n.params.max) })}</span>
+          <span>{n.code === 'doubleDoorsRemoved' ? t(n.code, { min: f.length(Number(n.params.min)) }) : n.code === 'restoredDefaults' || n.code === 'railRemoved' || n.code === 'turnRemoved' || n.code === 'plinthRemoved' ? t(n.code) : t(n.code, { max: Number(n.params.max) })}</span>
           {n.code !== 'restoredDefaults' && (
             <button type="button" className="shrink-0 rounded-full border border-white/40 px-3 py-1 font-medium hover:bg-white/10" onClick={undo}>
               {t('undo')}

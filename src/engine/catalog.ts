@@ -66,6 +66,7 @@ export const HANDLE_FINISHES: Record<HandleFinish, string> = {
   gold: '#b8975a',
   white: '#f2f1ee',
   brown: '#5b4636',
+  graphite: '#3a3d40',
 };
 
 export const SHEET = {
@@ -92,6 +93,8 @@ export const HARDWARE_PRICES: Record<string, number> = {
   leg: 110,
   hangingRail: 260,
   railHolder: 35,
+  glassHinge: 110,
+  plinthClip: 18,
   screw3516: 1,
   screw430: 2,
   screw450: 3,

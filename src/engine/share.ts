@@ -2,7 +2,7 @@ import { getModel, requireModel } from './models';
 import { validate } from './rules';
 import type { Config } from './types';
 
-const VERSION = '2';
+const VERSION = '3';
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text);
@@ -17,35 +17,26 @@ function fromBase64Url(value: string): string {
   return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
 }
 
-/** Compact, URL-safe form of a configuration for the `c` query parameter. */
+/** URL-safe form of a configuration for the `c` query parameter. */
 export function encodeConfig(config: Config): string {
-  const e = config.elements.map((el) => [el.width, el.front, el.shelves, el.doors, el.opening, el.drawers, +el.rail]);
-  const payload = [
-    config.model,
-    config.width,
-    config.height,
-    config.depth,
-    e,
-    config.bodyDecor,
-    config.frontDecor,
-    +config.back,
-    +config.doubleTop,
-    config.openingType,
-    config.handleShape,
-    config.handleFinish,
-    config.mount,
-    config.legHeight,
-    config.legFinish,
-  ];
-  return `${VERSION}.${toBase64Url(JSON.stringify(payload))}`;
+  return `${VERSION}.${toBase64Url(JSON.stringify(config))}`;
 }
 
 /** Decode and validate. Returns null for anything that is not a valid configuration. */
 export function decodeConfig(value: string | null | undefined): Config | null {
   if (!value) return null;
   const [version, body] = value.split('.');
-  // Version 1 links predate mounting, legs and rails; those fields take the model's defaults.
-  if ((version !== VERSION && version !== '1') || !body) return null;
+  // Versions 1 and 2 predate mounting, legs, rails and wardrobe compartments; those fields take the model's defaults.
+  if (!body) return null;
+  if (version === VERSION) {
+    try {
+      const config = JSON.parse(fromBase64Url(body)) as unknown;
+      return validate(config).length === 0 ? (config as Config) : null;
+    } catch {
+      return null;
+    }
+  }
+  if (version !== '2' && version !== '1') return null;
   try {
     const a = JSON.parse(fromBase64Url(body)) as unknown[];
     if (!Array.isArray(a) || !Array.isArray(a[4])) return null;
@@ -56,7 +47,7 @@ export function decodeConfig(value: string | null | undefined): Config | null {
       width: a[1],
       height: a[2],
       depth: a[3],
-      elements: (a[4] as unknown[][]).map((el) => ({ width: el[0], front: el[1], shelves: el[2], doors: el[3], opening: el[4], drawers: el[5], rail: el[6] === 1 })),
+      elements: (a[4] as unknown[][]).map((el) => ({ width: el[0], front: el[1], shelves: el[2], doors: el[3], opening: el[4], drawers: el[5], rail: el[6] === 1, cells: [], ownRows: false })),
       bodyDecor: a[5],
       frontDecor: a[6],
       back: a[7] === 1,
@@ -67,8 +58,13 @@ export function decodeConfig(value: string | null | undefined): Config | null {
       mount: a[12] ?? defaults.mount,
       legHeight: a[13] ?? defaults.legHeight,
       legFinish: a[14] ?? defaults.legFinish,
+      rows: defaults.rows,
+      shelfSetback: defaults.shelfSetback,
+      plinth: defaults.plinth,
+      glassFrame: defaults.glassFrame,
+      glassTint: defaults.glassTint,
     };
-    return validate(config).length === 0 ? (config as Config) : null;
+    return validate(config).length === 0 ? (config as unknown as Config) : null;
   } catch {
     return null;
   }

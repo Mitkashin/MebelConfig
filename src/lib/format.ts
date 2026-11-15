@@ -62,7 +62,7 @@ export function useFormat() {
   const decorShort = useCallback((id: string) => { const d = getDecor(id); return d ? t(`brands.${d.brand}`) : ''; }, [t]);
 
   const material = useCallback(
-    (row: Pick<CutRow, 'material' | 'decor'>) => (row.material === 'hdf' ? t('materials.hdf') : decorName(row.decor)),
+    (row: Pick<CutRow, 'material' | 'decor'>) => (row.material === 'hdf' ? t('materials.hdf') : row.material === 'glass' ? t('materials.glass') : decorName(row.decor)),
     [t, decorName],
   );
 
@@ -84,6 +84,14 @@ export function useFormat() {
           return t('issues.elementMax', { max: len(p.max) });
         case 'railSpace':
           return t('issues.railSpace', { height: len(p.height), depth: len(p.depth) });
+        case 'rowMin':
+          return t('issues.rowMin', { min: len(p.min) });
+        case 'rowsSum':
+          return t('issues.rowsSum', { height: len(p.height) });
+        case 'turn':
+          return t('issues.turn');
+        case 'plinthLegs':
+          return t('issues.plinthLegs');
         case 'elementCount':
           return t('issues.elementCount', { min: Number(p.min), max: Number(p.max) });
         case 'shelvesMax':

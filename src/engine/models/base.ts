@@ -1,5 +1,5 @@
 import { DEFAULT_BODY_DECOR, DEFAULT_FRONT_DECOR } from '../catalog';
-import type { Config, ElementConfig, Front, Mount } from '../types';
+import type { CellConfig, Config, ElementConfig, Front, Mount } from '../types';
 
 /** Construction parameters and limits of a model (mm). Every model owns a full set. */
 export interface ModelParams {
@@ -38,6 +38,15 @@ export interface ModelParams {
   elementMin: number;
   /** Widest single element; tall models need this so backs and doors still fit a sheet. */
   elementMax: number;
+  /** Wardrobe grid: lowest compartment, most rows, rail placement and space. */
+  rowMin: number;
+  rowsMax: number;
+  railTopOffset: number;
+  railInnerMin: number;
+  railDoubleInnerMin: number;
+  /** Gap between stacked fronts and between a front and the legs (mm). */
+  stackGap: number;
+  glassPricePerM2: number;
 }
 
 /**
@@ -48,13 +57,15 @@ export interface ModelParams {
  */
 export interface ModelDef {
   slug: string;
+  /** `row`: carcasses side by side under one top. `grid`: columns of stacked compartments (wardrobe). */
+  layout: 'row' | 'grid';
   /** Message key under `models.*` (name, description). */
   nameKey: string;
   params: ModelParams;
   fronts: Front[];
   mounts: Mount[];
   legHeights: number[];
-  features: { doubleTop: boolean; back: boolean; handles: boolean; rail: boolean };
+  features: { doubleTop: boolean; back: boolean; handles: boolean; rail: boolean; shelfSetback: boolean; plinth: boolean; glass: boolean };
   /** Height of the underside above the floor when hung on the wall (3D scene only). */
   wallHeight: number;
   /** What the customer can adjust, as message keys under `home.tags.*`. */
@@ -96,10 +107,17 @@ export const BASE_PARAMS: ModelParams = {
   elementsMax: 6,
   elementMin: 250,
   elementMax: 2780,
+  rowMin: 250,
+  rowsMax: 4,
+  railTopOffset: 60,
+  railInnerMin: 800,
+  railDoubleInnerMin: 1120,
+  stackGap: 3,
+  glassPricePerM2: 9500,
 };
 
 export function element(width: number, front: Front, patch: Partial<ElementConfig> = {}): ElementConfig {
-  return { width, front, shelves: 1, doors: 1, opening: 'auto', drawers: 2, rail: false, ...patch };
+  return { width, front, shelves: 1, doors: 1, opening: 'auto', drawers: 2, rail: false, cells: [], ownRows: false, ...patch };
 }
 
 /** Starting configuration; a model overrides only what differs. */
@@ -116,6 +134,15 @@ export function baseConfig(model: string, patch: Partial<Config> & Pick<Config, 
     mount: 'wall',
     legHeight: 150,
     legFinish: 'black',
+    rows: [],
+    shelfSetback: 10,
+    plinth: { front: false, left: false, right: false },
+    glassFrame: 'black',
+    glassTint: 'clear',
     ...patch,
   };
+}
+
+export function cell(height: number, front: CellConfig['front'], patch: Partial<CellConfig> = {}): CellConfig {
+  return { height, front, doors: 1, glass: false, opening: 'auto', shelves: 0, rails: 0, drawers: 2, turn: 'front', ...patch };
 }

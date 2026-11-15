@@ -1,11 +1,12 @@
 import { SHEET } from './catalog';
 import { requireModel, type ModelParams } from './models';
 import { baseHeight, carcassDepth, carcassZone, frontZone, slideLength } from './rules';
-import type { Axis, Config, DecorSlot, Edges, Fitting, HandlePlacement, Hinge, Material, Part, Role, Vec3 } from './types';
+import { buildGrid } from './grid';
+import type { Axis, Config, DecorSlot, Edges, Fitting, HandlePlacement, HandleShape, Hinge, Material, Part, Role, Vec3 } from './types';
 
 const NO_EDGES: Edges = { l1: false, l2: false, w1: false, w2: false };
 
-interface Spec {
+export interface Spec {
   id: string;
   role: Role;
   element: number | null;
@@ -50,6 +51,7 @@ export function autoHinge(index: number, count: number): Hinge {
  */
 export function buildParts(config: Config): Part[] {
   const model = requireModel(config.model);
+  if (model.layout === 'grid') return buildGrid(config).parts;
   const p = model.params;
   const t = p.board;
   const parts: Part[] = [];
@@ -204,79 +206,80 @@ function addDrawers(
   }
 }
 
+/** Handle box for one front-facing door leaf or drawer front. */
+export function handleFor(part: Part, shape: HandleShape): HandlePlacement {
+  const [x, y, z] = part.position;
+  const [w, h, th] = part.size;
+  const zf = z + th;
+  // On tall doors the handle sits at hand height instead of near the top edge.
+  const top = part.role === 'door' && h > 1300 && shape !== 'edge' && shape !== 'topPull' ? y + 1150 : y + h;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  // A side-hung door is pulled at the edge opposite the hinge; flaps and drawers at the centre.
+  const sideHung = part.role === 'door' && part.hinge !== 'bottom';
+  const edgeX = (inset: number, size: number) => (part.hinge === 'left' ? x + w - inset - size : x + inset);
+  let position: Vec3;
+  let size: Vec3;
+  switch (shape) {
+    case 'bar128': {
+      const len = Math.min(128, w - 40);
+      position = part.role === 'door' ? [cx - len / 2, top - 50, zf] : [cx - len / 2, cy - 5, zf];
+      size = [len, 10, 14];
+      break;
+    }
+    case 'bar320':
+    case 'longBar': {
+      if (sideHung) {
+        const len = shape === 'bar320' ? Math.min(320, h - 120) : Math.min(Math.round(h / 2), 1000);
+        const y0 = shape === 'bar320' ? top - 60 - len : Math.min(cy, y + 1100) - len / 2;
+        position = [edgeX(35, 10), y0, zf];
+        size = [10, len, 14];
+      } else {
+        const len = shape === 'bar320' ? Math.min(320, w - 80) : Math.round(w / 2);
+        position = [cx - len / 2, part.role === 'door' ? top - 50 : cy - 5, zf];
+        size = [len, 10, 14];
+      }
+      break;
+    }
+    case 'knob':
+      position = sideHung ? [edgeX(25, 30), top - 60, zf] : [cx - 15, part.role === 'door' ? top - 60 : cy - 15, zf];
+      size = [30, 30, 24];
+      break;
+    case 'shell':
+      if (sideHung) {
+        position = [edgeX(28, 28), top - 60 - 96, zf];
+        size = [28, 96, 4];
+      } else {
+        position = [cx - 48, part.role === 'door' ? top - 68 : cy - 14, zf];
+        size = [96, 28, 4];
+      }
+      break;
+    case 'edge':
+      position = [x, top - 14, zf];
+      size = [w, 14, 10];
+      break;
+    case 'topPull': {
+      const len = Math.min(150, w - 40);
+      position = [cx - len / 2, top - 22, zf];
+      size = [len, 22, 18];
+      break;
+    }
+  }
+  return { id: `handle:${part.id}`, frontId: part.id, shape, position, size };
+}
+
 /** Handle boxes for every door leaf and drawer front. Hardware, not sheet parts; they move with their front. */
 export function buildHandles(config: Config, parts: Part[]): HandlePlacement[] {
   const model = requireModel(config.model);
   if (!model.features.handles || config.openingType !== 'handles') return [];
-  const shape = config.handleShape;
-  const out: HandlePlacement[] = [];
-  for (const part of parts) {
-    if (part.role !== 'door' && part.role !== 'drawerFront') continue;
-    const [x, y, z] = part.position;
-    const [w, h, th] = part.size;
-    const zf = z + th;
-    // On tall doors the handle sits at hand height instead of near the top edge.
-    const top = part.role === 'door' && h > 1300 && shape !== 'edge' && shape !== 'topPull' ? y + 1150 : y + h;
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    // A side-hung door is pulled at the edge opposite the hinge; flaps and drawers at the centre.
-    const sideHung = part.role === 'door' && part.hinge !== 'bottom';
-    const edgeX = (inset: number, size: number) => (part.hinge === 'left' ? x + w - inset - size : x + inset);
-    let position: Vec3;
-    let size: Vec3;
-    switch (shape) {
-      case 'bar128': {
-        const len = Math.min(128, w - 40);
-        position = part.role === 'door' ? [cx - len / 2, top - 50, zf] : [cx - len / 2, cy - 5, zf];
-        size = [len, 10, 14];
-        break;
-      }
-      case 'bar320':
-      case 'longBar': {
-        if (sideHung) {
-          const len = shape === 'bar320' ? Math.min(320, h - 120) : Math.round(h / 2);
-          const y0 = shape === 'bar320' ? top - 60 - len : cy - len / 2;
-          position = [edgeX(35, 10), y0, zf];
-          size = [10, len, 14];
-        } else {
-          const len = shape === 'bar320' ? Math.min(320, w - 80) : Math.round(w / 2);
-          position = [cx - len / 2, part.role === 'door' ? top - 50 : cy - 5, zf];
-          size = [len, 10, 14];
-        }
-        break;
-      }
-      case 'knob':
-        position = sideHung ? [edgeX(25, 30), top - 60, zf] : [cx - 15, part.role === 'door' ? top - 60 : cy - 15, zf];
-        size = [30, 30, 24];
-        break;
-      case 'shell':
-        if (sideHung) {
-          position = [edgeX(28, 28), top - 60 - 96, zf];
-          size = [28, 96, 4];
-        } else {
-          position = [cx - 48, part.role === 'door' ? top - 68 : cy - 14, zf];
-          size = [96, 28, 4];
-        }
-        break;
-      case 'edge':
-        position = [x, top - 14, zf];
-        size = [w, 14, 10];
-        break;
-      case 'topPull': {
-        const len = Math.min(150, w - 40);
-        position = [cx - len / 2, top - 22, zf];
-        size = [len, 22, 18];
-        break;
-      }
-    }
-    out.push({ id: `handle:${part.id}`, frontId: part.id, shape, position, size });
-  }
-  return out;
+  if (model.layout === 'grid') return buildGrid(config).handles;
+  return parts.filter((x) => x.role === 'door' || x.role === 'drawerFront').map((x) => handleFor(x, config.handleShape));
 }
 
 /** Legs under the carcass boundaries and clothes rails: drawn in 3D and counted as hardware, not cut from sheets. */
 export function buildFittings(config: Config, parts: Part[]): Fitting[] {
   const model = requireModel(config.model);
+  if (model.layout === 'grid') return buildGrid(config).fittings;
   const p = model.params;
   const out: Fitting[] = [];
   const bottoms = parts.filter((x) => x.role === 'bottom');

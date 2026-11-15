@@ -7,7 +7,26 @@ export type Opening = 'auto' | 'left' | 'right' | 'bottom';
 export type Hinge = 'left' | 'right' | 'bottom';
 export type OpeningType = 'handles' | 'push';
 export type HandleShape = 'bar128' | 'bar320' | 'longBar' | 'knob' | 'shell' | 'edge' | 'topPull';
-export type HandleFinish = 'grey' | 'black' | 'gold' | 'white' | 'brown';
+export type HandleFinish = 'grey' | 'black' | 'gold' | 'white' | 'brown' | 'graphite';
+/** Which way a wardrobe compartment faces: forwards, or turned to open at the left or right end. */
+export type Turn = 'front' | 'left' | 'right';
+export type GlassFrame = 'black' | 'white';
+export type GlassTint = 'clear' | 'light' | 'dark';
+
+/** One compartment (carcass) in a wardrobe column, listed top to bottom. */
+export interface CellConfig {
+  /** Height of the compartment in mm, legs included for the bottom one. */
+  height: number;
+  front: Front;
+  doors: 1 | 2;
+  glass: boolean;
+  opening: 'auto' | 'left' | 'right';
+  shelves: number;
+  /** Hanging rails: none, one, or two (one above the other). */
+  rails: 0 | 1 | 2;
+  drawers: number;
+  turn: Turn;
+}
 /** How the piece is supported: hung on the wall, standing on legs, or standing directly on the floor. */
 export type Mount = 'wall' | 'legs' | 'floor';
 
@@ -20,6 +39,10 @@ export interface ElementConfig {
   drawers: number;
   /** Hanging rail for clothes (models that offer it). */
   rail: boolean;
+  /** Wardrobe compartments in this column, top to bottom; empty for row furniture. */
+  cells: CellConfig[];
+  /** True when this column's compartment heights differ from the shared rows. */
+  ownRows: boolean;
 }
 
 export interface Config {
@@ -39,6 +62,14 @@ export interface Config {
   /** Leg height in mm; used when `mount` is `legs`. The total height includes the legs. */
   legHeight: number;
   legFinish: HandleFinish;
+  /** Wardrobes: shared row heights, top to bottom, adding up to the total height. Empty for row furniture. */
+  rows: number[];
+  /** How much shorter shelves are than the carcass depth (mm), so they clear the back. */
+  shelfSetback: number;
+  /** Panels covering the legs at the front and ends. */
+  plinth: { front: boolean; left: boolean; right: boolean };
+  glassFrame: GlassFrame;
+  glassTint: GlassTint;
 }
 
 export type Role =
@@ -52,9 +83,11 @@ export type Role =
   | 'drawerFront'
   | 'drawerSide'
   | 'drawerInner'
-  | 'drawerBottom';
+  | 'drawerBottom'
+  | 'plinth';
 
-export type Material = 'board' | 'hdf';
+/** `glass` doors are bought ready-made in an aluminium frame: listed, not cut from sheets. */
+export type Material = 'board' | 'hdf' | 'glass';
 export type DecorSlot = 'body' | 'front';
 
 /** l1/l2: the two edges running along `length` (low/high end of the width axis); w1/w2: the edges running along `width`. */
@@ -88,6 +121,10 @@ export interface Part {
   hinge?: Hinge;
   /** Number of hinges on a door (cup holes to drill on the hinged edge). */
   hinges?: number;
+  /** Wardrobe compartment (index in its column, top first). */
+  cell?: number;
+  /** Fronts of compartments turned to open sideways. */
+  facing?: 'left' | 'right';
   /** Parts sharing a group move together (a drawer box and its front). */
   group?: string;
 }
@@ -123,6 +160,10 @@ export interface Issue {
     | 'doubleDoorMin'
     | 'drawersDepth'
     | 'railSpace'
+    | 'rowMin'
+    | 'rowsSum'
+    | 'turn'
+    | 'plinthLegs'
     | 'unsupported'
     | 'invalid';
   /** Dot path of the offending field, e.g. `width` or `elements.1.width`. */
@@ -131,7 +172,7 @@ export interface Issue {
 }
 
 export interface Notice {
-  code: 'shelvesReduced' | 'drawersReduced' | 'doubleDoorsRemoved' | 'railRemoved' | 'restoredDefaults';
+  code: 'shelvesReduced' | 'drawersReduced' | 'doubleDoorsRemoved' | 'railRemoved' | 'restoredDefaults' | 'turnRemoved' | 'plinthRemoved';
   params: Record<string, number | string>;
 }
 

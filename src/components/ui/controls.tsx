@@ -19,13 +19,15 @@ interface NumberFieldProps {
   max: number;
   onCommit: (mm: number) => Issue[];
   slider?: boolean;
+  /** Small control shown at the right of the label (e.g. a lock), so it never moves the field. */
+  labelAside?: ReactNode;
 }
 
 /**
  * Length input with steppers and an optional slider. A rejected value stays
  * in the field with an explanation; the model keeps its last valid value.
  */
-export function NumberField({ path, label, value, min, max, onCommit, slider = false }: NumberFieldProps) {
+export function NumberField({ path, label, value, min, max, onCommit, slider = false, labelAside }: NumberFieldProps) {
   const t = useTranslations('field');
   const f = useFormat();
   const id = useId();
@@ -62,9 +64,12 @@ export function NumberField({ path, label, value, min, max, onCommit, slider = f
 
   return (
     <div className="grid gap-2">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </label>
+        {labelAside}
+      </div>
       <div className="flex items-center gap-2">
         <button type="button" className={roundButton} aria-label={t('decrease', { field: label })} title={t('stepHint')} disabled={value <= min} onClick={(e) => step(e.shiftKey ? -10 : -1)}>
           −
@@ -253,6 +258,26 @@ export function StepCard({ index, title, summary, help, open, invalid, onToggle,
         {children}
       </div>
     </section>
+  );
+}
+
+/** Lock toggle: closed when the value is kept, open when it may adjust. */
+export function LockToggle({ locked, label, onToggle, testId }: { locked: boolean; label: string; onToggle: () => void; testId?: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={locked}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+      data-testid={testId}
+      className={cx('grid size-7 place-items-center rounded-full transition', locked ? 'bg-accent text-white' : 'text-muted hover:bg-paper hover:text-accent')}
+    >
+      <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="9" width="12" height="8" rx="1.8" />
+        {locked ? <path d="M7 9V6.5a3 3 0 0 1 6 0V9" /> : <path d="M7 9V6.5a3 3 0 0 1 5.8-1.1" />}
+      </svg>
+    </button>
   );
 }
 

@@ -43,6 +43,7 @@ function useLabels() {
     if (key === 'handle' && item.detail) {
       return thw('handleDetail', { shape: ts(`shapes.${item.detail.shape}` as 'shapes.bar128'), finish: ts(`finishes.${item.detail.finish}` as 'finishes.grey') });
     }
+    if (key === 'glassDoor' && item.detail) return thw('glassDoorDetail', { area: f.count(Number(item.detail.area)), frame: ts(`frames.${item.detail.frame}` as 'frames.black'), tint: ts(`tints.${item.detail.tint}` as 'tints.clear') });
     if (key === 'leg' && item.detail) return thw('legDetail', { height: f.mm(Number(item.detail.height)), finish: ts(`finishes.${item.detail.finish}` as 'finishes.grey') });
     if (key === 'drawerSlide' && item.detail) return thw('drawerSlideDetail', { length: f.mm(Number(item.detail.length)) });
     return thw(`items.${key}` as 'items.hinge');

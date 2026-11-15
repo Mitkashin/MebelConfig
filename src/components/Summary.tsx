@@ -15,7 +15,7 @@ export function Summary() {
   const errors = useConfigurator((s) => s.errors);
   const setTab = useConfigurator((s) => s.setTab);
   const model = requireModel(config.model);
-  const closed = config.elements.filter((e) => e.front !== 'open').length;
+  const closed = model.layout === 'grid' ? config.elements.flatMap((e) => e.cells).filter((c) => c.front !== 'open').length : config.elements.filter((e) => e.front !== 'open').length;
   const blocked = Object.values(errors);
   const showHandles = model.features.handles && closed > 0;
 
@@ -23,8 +23,10 @@ export function Summary() {
     [t('width'), f.length(config.width)],
     [t('height'), f.length(config.height)],
     [t('depth'), f.length(config.depth)],
-    [t('elements'), String(config.elements.length)],
-    [t('fronts'), ts('fronts.summary', { closed, total: config.elements.length })],
+    [model.layout === 'grid' ? t('columns') : t('elements'), model.layout === 'grid' ? t('gridValue', { columns: config.elements.length, rows: config.rows.length }) : String(config.elements.length)],
+    model.layout === 'grid'
+      ? [t('fronts'), ts('cells.summary', { count: config.elements.reduce((s2, e) => s2 + e.cells.length, 0), closed })]
+      : [t('fronts'), ts('fronts.summary', { closed, total: config.elements.length })],
     [t('back'), config.back ? t('included') : t('none')],
     [t('mount'), config.mount === 'legs' ? t('mountLegs', { height: f.length(config.legHeight) }) : ts(`details.mounts.${config.mount}`)],
   ];
@@ -53,7 +55,10 @@ export function Summary() {
         ))}
       </dl>
       <ul className="grid gap-1 border-t border-line pt-3 text-sm">
-        {config.elements.map((e, i) => (
+        {model.layout === 'grid' && config.elements.map((e, i) => (
+          <li key={i}>{t('columnLine', { n: i + 1, width: f.length(e.width), count: e.cells.length, rails: e.cells.reduce((s2, c) => s2 + (c.front === 'drawers' ? 0 : c.rails), 0) })}</li>
+        ))}
+        {model.layout !== 'grid' && config.elements.map((e, i) => (
           <li key={i}>
             {t('elementLine', {
               n: i + 1,

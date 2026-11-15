@@ -11,7 +11,8 @@
     "percent": "{value}%"
   },
   "materials": {
-    "hdf": "HDF board"
+    "hdf": "HDF board",
+    "glass": "Glass in aluminium frame (ready-made)"
   },
   "meta": {
     "title": "Made-to-measure furniture configurator | PoMerka",
@@ -91,7 +92,9 @@
     "restoredDefaults": "That link could not be opened, so the default design is shown.",
     "undo": "Undo",
     "dismiss": "Dismiss",
-    "railRemoved": "A hanging rail no longer fits, so it was removed."
+    "railRemoved": "A hanging rail no longer fits, so it was removed.",
+    "turnRemoved": "A turned compartment is only possible in an end column, so it now faces forwards.",
+    "plinthRemoved": "A plinth needs legs, so it was removed."
   },
   "field": {
     "decrease": "Decrease {field}",
@@ -112,7 +115,11 @@
     "drawersDepth": "Drawers need a depth between {min} and {max}.",
     "invalid": "Enter a number.",
     "elementMax": "An element can be at most {max} wide. Add an element or reduce the width.",
-    "railSpace": "A hanging rail needs a height of at least {height} and a depth of at least {depth}."
+    "railSpace": "A hanging rail needs a height of at least {height} and a depth of at least {depth}.",
+    "rowMin": "Each compartment must be at least {min} high.",
+    "rowsSum": "The heights must add up to the total height of {height}.",
+    "turn": "Only compartments in the end columns can be turned, and turned ones cannot have drawers.",
+    "plinthLegs": "A plinth needs legs."
   },
   "steps": {
     "title": "Settings",
@@ -136,9 +143,9 @@
       "maxNote": "This width fits up to {max, plural, one {# element} other {# elements}}; each must be at least {min} wide.",
       "widthOf": "Width of element {n}",
       "equalise": "Equalise widths",
-      "pinned": "Kept at this width",
-      "unpin": "Let it adjust",
-      "pinHelp": "A width you type is kept; the other elements make up the difference. Equalise widths releases them all."
+      "pinHelp": "A width you type is kept (lock closed); the other elements make up the difference. Click a lock to change it.",
+      "lock": "Keep the width of element {n}",
+      "unlock": "Let element {n} adjust"
     },
     "fronts": {
       "title": "Fronts and shelves",
@@ -233,7 +240,8 @@
         "black": "Black",
         "gold": "Gold",
         "white": "White",
-        "brown": "Brown"
+        "brown": "Brown",
+        "graphite": "Graphite"
       },
       "mount": "Mounting",
       "mounts": {
@@ -243,7 +251,85 @@
       },
       "legHeight": "Leg height",
       "legHelp": "The total height stays the same; the body is lower by the height of the legs.",
-      "legFinish": "Leg colour"
+      "legFinish": "Leg colour",
+      "setback": "Shelves shorter than the carcass",
+      "setbackHelp": "How much shorter shelves are than the carcass depth, so they clear the back.",
+      "plinth": "Plinth",
+      "plinthFront": "Plinth at the front (full width)",
+      "plinthLeft": "Plinth on the left end",
+      "plinthRight": "Plinth on the right end",
+      "plinthHelp": "A panel in the body colour, as tall as the legs and banded all round, covering the legs from the front or the side.",
+      "glassFrame": "Glass door frame",
+      "frames": {
+        "black": "black",
+        "white": "white"
+      },
+      "glassTint": "Glass",
+      "tints": {
+        "clear": "clear",
+        "light": "lightly tinted",
+        "dark": "dark tinted"
+      }
+    },
+    "layout": {
+      "title": "Layout",
+      "help": "How many columns and rows of compartments the wardrobe has, and how big each is.",
+      "summary": "{columns, plural, one {# column} other {# columns}} × {rows, plural, one {# row} other {# rows}}",
+      "columns": "Number of columns",
+      "columnsNote": "Each column is between {min} and {max} wide.",
+      "columnWidth": "Width of column {n}",
+      "rows": "Number of rows",
+      "rowHeight": "Height of row {n} (from the top)",
+      "rowsHelp": "Changing one row moves the others so the rows still add up to the total height.",
+      "rowsHelpLegs": "The bottom row includes the {legs} legs. Changing one row moves the others so the rows still add up to the total height.",
+      "defaultRows": "Default row heights",
+      "ownTitle": "Heights per column",
+      "ownHelp": "Give a column its own compartment heights (for example a taller bottom compartment). The other columns keep the shared rows.",
+      "ownSwitch": "Column {n}: own heights",
+      "cellHeight": "Compartment {k} (from the top)"
+    },
+    "cells": {
+      "title": "Compartments",
+      "help": "Pick a compartment in the grid or click it in the 3D view: front, shelves, rails, facing.",
+      "summary": "{count, plural, one {# compartment} other {# compartments}} · {closed} closed",
+      "picker": "Compartments",
+      "cellLabel": "Compartment {n}: row {r}, column {c}",
+      "selected": "Compartment {n} · row {r}, column {c} · {w} × {h}",
+      "front": "Front",
+      "fronts": {
+        "doors": "Doors",
+        "drawers": "Drawers",
+        "open": "No front"
+      },
+      "turnedNoDrawers": "A turned compartment cannot have drawers.",
+      "doorMaterial": "Door material",
+      "board": "Board",
+      "glass": "Glass (aluminium frame)",
+      "glassHint": "Glass doors in an aluminium frame have the same size, opening and hinges as board doors, and you can see the shelves and rails through them. They are ordered ready-made, not cut from a sheet.",
+      "rails": "Hanging rails",
+      "railCount": {
+        "0": "None",
+        "1": "One rail",
+        "2": "Two rails"
+      },
+      "railsNeed": "One rail needs a compartment at least {one} high, two rails at least {two}.",
+      "railsDepth": "Hanging rails need at least {depth} of depth for the hangers.",
+      "shelvesBelowRail": "Shelves below the hanging space",
+      "noShelvesDouble": "With two rails the compartment is all hanging space, so there are no shelves.",
+      "maxShelves": "Up to {max, plural, =0 {no shelves} one {# shelf} other {# shelves}} fit here, at least {spacing} apart.",
+      "drawerInfo": "Up to {max} drawers fit this compartment; slides {slide}.",
+      "turn": "Facing",
+      "turns": {
+        "front": "Forwards",
+        "left": "To the left",
+        "right": "To the right"
+      },
+      "turnHelp": "A turned compartment shows its side at the front and opens at the end of the wardrobe; it is as deep as the column is wide ({depth} of carcass).",
+      "remove": "Remove compartment",
+      "split": "Split compartment",
+      "removeHelp": "Removing gives the height to its neighbours (the one below for the top compartment, the one above for the bottom one, half each otherwise). Splitting makes two compartments of half the height.",
+      "removeOnly": "This is the only compartment in its column, so it cannot be removed.",
+      "splitUnavailable": "A compartment can be split when it is at least {min} high and the column has room for another."
     }
   },
   "summary": {
@@ -275,7 +361,10 @@
     "generateHelp": "The cut list, sheet layouts and price follow the current settings and update as you change them.",
     "mount": "Mounting",
     "mountLegs": "On legs, {height}",
-    "withRail": ", hanging rail"
+    "withRail": ", hanging rail",
+    "columns": "Layout",
+    "gridValue": "{columns, plural, one {# column} other {# columns}} × {rows, plural, one {# row} other {# rows}}",
+    "columnLine": "Column {n}: {width}, {count, plural, one {# compartment} other {# compartments}}{rails, plural, =0 {} one {, # hanging rail} other {, # hanging rails}}"
   },
   "viewer": {
     "loading": "Loading 3D view…",
@@ -302,7 +391,8 @@
     "drawerFront": "Drawer front",
     "drawerSide": "Drawer side",
     "drawerInner": "Drawer box front/back",
-    "drawerBottom": "Drawer bottom"
+    "drawerBottom": "Drawer bottom",
+    "plinth": "Plinth"
   },
   "hardware": {
     "handleDetail": "Handle: {shape}, {finish}",
@@ -324,9 +414,13 @@
       "wallPlug": "Wall plug with screw",
       "leg": "Leg",
       "hangingRail": "Hanging rail, cut to the element",
-      "railHolder": "Rail holder"
+      "railHolder": "Rail holder",
+      "glassHinge": "Hinge for glass door",
+      "glassDoor": "Glass door in aluminium frame",
+      "plinthClip": "Plinth clip"
     },
-    "legDetail": "Leg, {height}, {finish}"
+    "legDetail": "Leg, {height}, {finish}",
+    "glassDoorDetail": "Glass door, {frame} frame, {tint} glass ({area} m² in total)"
   },
   "results": {
     "title": "Results",

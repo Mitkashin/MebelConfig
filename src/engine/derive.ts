@@ -1,4 +1,5 @@
 import { buildFittings, buildHandles, buildParts } from './build';
+import { cellCount } from './grid';
 import { CURRENCY, HANDLE_PRICE_FACTOR, HARDWARE_PRICES, RATES } from './catalog';
 import { bandingLength, buildCutList } from './cutlist';
 import { requireModel } from './models';
@@ -24,12 +25,23 @@ export function buildHardware(config: Config, parts: Part[], fittings: Fitting[]
   const drawers = parts.filter((x) => x.role === 'drawerFront').length;
   const shelves = parts.filter((x) => x.role === 'shelf').length;
   const nailed = parts.filter((x) => x.role === 'back' || x.role === 'drawerBottom');
+  const grid = model.layout === 'grid';
+  // Wardrobes are built from one carcass per compartment.
+  const carcasses = grid ? cellCount(config) : config.elements.length;
   const elements = config.elements.length;
   const fronts = doors.length + drawers;
   const handles = fronts > 0 && model.features.handles && config.openingType === 'handles';
 
-  const hinges = doors.reduce((s, d) => s + (d.hinges ?? 0), 0);
+  const glassDoors = doors.filter((d) => d.material === 'glass');
+  const hinges = doors.reduce((s, d) => s + (d.material === 'glass' ? 0 : (d.hinges ?? 0)), 0);
+  const glassHinges = glassDoors.reduce((s, d) => s + (d.hinges ?? 0), 0);
   push('hinge', hinges);
+  push('glassHinge', glassHinges);
+  if (glassDoors.length > 0) {
+    // Glass doors come ready-made in an aluminium frame, priced by area.
+    const area = glassDoors.reduce((s, d) => s + (d.length * d.width) / 1e6, 0);
+    push('glassDoor', glassDoors.length, 'pcs', { area: Math.round(area * 100) / 100, frame: config.glassFrame, tint: config.glassTint }, Math.round((area * p.glassPricePerM2) / glassDoors.length));
+  }
   push('flapStay', doors.filter((d) => d.hinge === 'bottom').length);
   if (handles) {
     push('handle', fronts, 'pcs', { shape: config.handleShape, finish: config.handleFinish }, Math.round(price('handle') * HANDLE_PRICE_FACTOR[config.handleShape]));
@@ -50,10 +62,15 @@ export function buildHardware(config: Config, parts: Part[], fittings: Fitting[]
   // 3.5x16: four per hinge, eight per pair of slides, two per push latch, two per rail holder.
   push('screw3516', withReserve(hinges * 4 + drawers * 8 + (handles ? 0 : fronts * 2) + rails * 4));
   // 4x30: top fixed through the rails (4 per carcass), wall brackets (2 each), drawer fronts and legs (4 each).
-  push('screw430', withReserve(elements * 4 + brackets * 2 + drawers * 4 + legs * 4));
-  // 4x50: bottom to sides (2 joints) and rails to sides (4 joints) per carcass, 4 corner joints per drawer box.
-  const perJoint = carcassDepth(config, p) > 400 ? 3 : 2;
-  const carcassScrews = withReserve(elements * (2 * perJoint + 4 * 2) + drawers * 4 * 2);
+  const plinths = parts.filter((x) => x.role === 'plinth').length;
+  push('plinthClip', plinths * 3);
+  // Stacked wardrobe carcasses are screwed to each other: 4 screws per joint.
+  const stackJoints = grid ? config.elements.reduce((s, e) => s + e.cells.length - 1, 0) + (elements - 1) * 2 : 0;
+  push('screw430', withReserve((grid ? stackJoints * 4 : elements * 4) + brackets * 2 + drawers * 4 + legs * 4));
+  // 4x50: bottom (and top for wardrobes) to sides, rails to sides, 4 corner joints per drawer box.
+  const depthForScrews = grid ? config.depth : carcassDepth(config, p);
+  const perJoint = depthForScrews > 400 ? 3 : 2;
+  const carcassScrews = withReserve(carcasses * (grid ? 4 * perJoint : 2 * perJoint + 4 * 2) + drawers * 4 * 2);
   push('screw450', carcassScrews);
   push('screwCap', carcassScrews);
   if (handles) push('handleScrew', withReserve(fronts * (config.handleShape === 'knob' ? 1 : 2)));

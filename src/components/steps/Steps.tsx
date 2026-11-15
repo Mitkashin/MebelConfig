@@ -8,7 +8,8 @@ import { drawerDepthMin, elementMaxShelves, frontZone, limits, railHeightMin, sh
 import type { Front, HandleFinish, Mount, Opening } from '@/engine/types';
 import { useFormat } from '@/lib/format';
 import { useConfigurator } from '@/store/configurator';
-import { Counter, cx, NumberField, Segmented, StepCard, Switch } from '../ui/controls';
+import { Counter, cx, LockToggle, NumberField, Segmented, StepCard, Switch } from '../ui/controls';
+import { Compartments, GridLayout, WardrobeDetails } from './Wardrobe';
 
 const PAGE = 12;
 
@@ -40,12 +41,14 @@ function Elements() {
   const equalise = useConfigurator((s) => s.equalise);
   const pinned = useConfigurator((s) => s.pinned);
   const unpin = useConfigurator((s) => s.unpin);
+  const pin = useConfigurator((s) => s.pin);
   const n = config.elements.length;
   const equal = Math.max(...config.elements.map((e) => e.width)) - Math.min(...config.elements.map((e) => e.width)) <= 1;
   return (
     <>
       <Counter label={t('count')} value={n} min={lim.elements.min} max={lim.elements.max} onChange={(v) => setElementCount(v)} />
       <p className="text-sm text-muted">{t('maxNote', { max: lim.elements.max, min: f.length(lim.elementWidth.min) })}</p>
+      {config.elements.length > 2 && <p className="text-sm text-muted">{t('pinHelp')}</p>}
       <div className="flex h-3 overflow-hidden rounded-full" aria-hidden="true">
         {config.elements.map((e, i) => (
           <span key={i} style={{ flexGrow: e.width }} className={cx('border-r-2 border-surface last:border-r-0', i % 2 ? 'bg-accent/50' : 'bg-accent')} />
@@ -53,20 +56,22 @@ function Elements() {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {config.elements.map((e, i) => (
-          <div key={i} className="grid gap-1">
-            <NumberField path={`elements.${i}.width`} label={t('widthOf', { n: i + 1 })} value={e.width} min={lim.elementWidth.min} max={lim.elementWidth.max} onCommit={(v) => setElementWidth(i, v)} />
-            {pinned.includes(i) && config.elements.length > 1 && (
-              <p className="flex items-center gap-2 text-xs text-muted" data-testid={`pinned-${i}`}>
-                <span>{t('pinned')}</span>
-                <button type="button" className="font-medium text-accent underline-offset-2 hover:underline" onClick={() => unpin(i)}>
-                  {t('unpin')}
-                </button>
-              </p>
-            )}
-          </div>
+          <NumberField
+            key={i}
+            path={`elements.${i}.width`}
+            label={t('widthOf', { n: i + 1 })}
+            value={e.width}
+            min={lim.elementWidth.min}
+            max={lim.elementWidth.max}
+            onCommit={(v) => setElementWidth(i, v)}
+            labelAside={
+              config.elements.length > 1 ? (
+                <LockToggle locked={pinned.includes(i)} label={pinned.includes(i) ? t('unlock', { n: i + 1 }) : t('lock', { n: i + 1 })} onToggle={() => (pinned.includes(i) ? unpin(i) : pin(i))} testId={`lock-${i}`} />
+              ) : null
+            }
+          />
         ))}
       </div>
-      {config.elements.length > 2 && <p className="text-sm text-muted">{t('pinHelp')}</p>}
       <button type="button" className="justify-self-start rounded-full border border-line px-4 py-2 text-sm font-medium hover:border-accent hover:text-accent disabled:opacity-40" disabled={equal} onClick={equalise}>
         {t('equalise')}
       </button>
@@ -287,9 +292,10 @@ function Details() {
   const f = useFormat();
   const { config, model } = useModel();
   const patch = useConfigurator((s) => s.patch);
-  const hasFronts = config.elements.some((e) => e.front !== 'open');
+  const hasFronts = model.layout === 'grid' ? config.elements.some((e) => e.cells.some((c) => c.front !== 'open')) : config.elements.some((e) => e.front !== 'open');
   return (
     <>
+      {model.layout === 'grid' && <WardrobeDetails />}
       {model.mounts.length > 1 && (
         <Segmented label={t('mount')} value={config.mount} options={model.mounts.map((m: Mount) => ({ value: m, label: t(`mounts.${m}`) }))} onChange={(mount) => patch({ mount })} />
       )}
@@ -300,7 +306,7 @@ function Details() {
           <div className="grid gap-1.5">
             <span className="text-sm font-medium">{t('legFinish')}</span>
             <div role="radiogroup" aria-label={t('legFinish')} className="flex flex-wrap gap-2">
-              {(['black', 'grey', 'white', 'gold'] as HandleFinish[]).map((finish) => (
+              {(model.layout === 'grid' ? (['graphite', 'black', 'white'] as HandleFinish[]) : (['black', 'grey', 'white', 'gold'] as HandleFinish[])).map((finish) => (
                 <button
                   key={finish}
                   type="button"
@@ -378,8 +384,8 @@ function Details() {
 
 const STEP_PATHS: ((path: string) => boolean)[] = [
   (p) => p === 'width' || p === 'height' || p === 'depth',
-  (p) => p.startsWith('elements') && p.endsWith('width'),
-  (p) => p.startsWith('elements') && !p.endsWith('width'),
+  (p) => (p.startsWith('elements') && (p.endsWith('width') || p.endsWith('height'))) || p.startsWith('rows'),
+  (p) => p.startsWith('elements') && !p.endsWith('width') && !p.endsWith('height'),
   () => false,
   () => false,
 ];
@@ -393,7 +399,7 @@ export function Steps() {
   const allOpen = open.every(Boolean);
   const toggle = (i: number) => setOpen(open.map((o, k) => (k === i ? !o : o)));
 
-  const closed = config.elements.filter((e) => e.front !== 'open').length;
+  const closed = model.layout === 'grid' ? config.elements.filter((e) => e.cells.some((c) => c.front !== 'open')).length : config.elements.filter((e) => e.front !== 'open').length;
   const summaries = [
     t('dimensions.summary', { w: f.length(config.width), h: f.length(config.height), d: f.length(config.depth) }),
     t('elements.summary', { count: config.elements.length, widths: config.elements.map((e) => f.lengthValue(e.width)).join(' / ') }),
@@ -403,8 +409,14 @@ export function Steps() {
       : f.decorName(config.bodyDecor),
     [t(`details.mounts.${config.mount}`), config.back ? t('details.summaryBack') : t('details.summaryNoBack'), closed > 0 && model.features.handles ? t(`details.${config.openingType}`) : null].filter(Boolean).join(' · '),
   ];
-  const bodies = [<Dimensions key="d" />, <Elements key="e" />, <Fronts key="f" />, <Colours key="c" />, <Details key="x" />];
-  const names = ['dimensions', 'elements', 'fronts', 'colours', 'details'] as const;
+  const grid = model.layout === 'grid';
+  if (grid) {
+    const cells = config.elements.flatMap((e) => e.cells);
+    summaries[1] = t('layout.summary', { columns: config.elements.length, rows: config.rows.length });
+    summaries[2] = t('cells.summary', { count: cells.length, closed: cells.filter((c) => c.front !== 'open').length });
+  }
+  const bodies = [<Dimensions key="d" />, grid ? <GridLayout key="e" /> : <Elements key="e" />, grid ? <Compartments key="f" /> : <Fronts key="f" />, <Colours key="c" />, <Details key="x" />];
+  const names = ['dimensions', grid ? 'layout' : 'elements', grid ? 'cells' : 'fronts', 'colours', 'details'] as const;
 
   return (
     <div className="grid gap-3">

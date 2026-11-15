@@ -1,27 +1,34 @@
-import { BASE_PARAMS, baseConfig, element, type ModelDef } from './base';
+import { BASE_PARAMS, baseConfig, cell, element, type ModelDef } from './base';
 
-/** Wardrobe: tall, floor-standing columns with doors, shelves and optional hanging rails. */
+/**
+ * Wardrobe: columns of stacked compartments, each its own carcass. Each
+ * compartment has doors (board or glass), drawers or none, shelves, up to
+ * two hanging rails, and at the ends it can be turned to open sideways.
+ */
 export const wardrobe: ModelDef = {
+  layout: 'grid',
   slug: 'wardrobe-1',
   nameKey: 'wardrobe',
-  params: { ...BASE_PARAMS, widthMin: 400, heightMin: 1600, heightMax: 2400, depthMin: 350, depthMax: 650, elementMin: 400, elementMax: 1200, elementsMax: 6 },
-  fronts: ['doors', 'open'],
-  mounts: ['floor'],
-  legHeights: [],
-  features: { doubleTop: false, back: true, handles: true, rail: true },
+  params: { ...BASE_PARAMS, widthMin: 300, widthMax: 3600, heightMin: 600, heightMax: 2780, depthMin: 300, depthMax: 700, elementMin: 300, elementMax: 1200, elementsMax: 6, doorWidthGap: 3, drawersMax: 4, drawerFrontMin: 120 },
+  fronts: ['doors', 'drawers', 'open'],
+  mounts: ['floor', 'legs'],
+  legHeights: [50, 60, 100, 150, 200, 300],
+  features: { doubleTop: false, back: true, handles: true, rail: true, shelfSetback: true, plinth: true, glass: true },
   wallHeight: 0,
   tags: ['size', 'columns', 'doors', 'rails'],
   defaults: baseConfig('wardrobe-1', {
-    width: 2000,
-    height: 2200,
-    depth: 580,
-    mount: 'floor',
-    handleShape: 'bar320',
+    width: 1200,
+    height: 2400,
+    depth: 600,
+    mount: 'legs',
+    legHeight: 100,
+    legFinish: 'graphite',
+    handleShape: 'longBar',
+    rows: [400, 1400, 600],
     elements: [
-      element(500, 'doors', { shelves: 1, rail: true }),
-      element(500, 'doors', { shelves: 1, rail: true }),
-      element(500, 'doors', { shelves: 5 }),
-      element(500, 'doors', { shelves: 5 }),
+      element(400, 'doors', { cells: [cell(400, 'doors'), cell(1400, 'doors', { rails: 1 }), cell(600, 'drawers', { drawers: 2 })] }),
+      element(400, 'doors', { cells: [cell(400, 'doors'), cell(1400, 'doors', { rails: 1 }), cell(600, 'drawers', { drawers: 2 })] }),
+      element(400, 'doors', { cells: [cell(400, 'doors'), cell(1400, 'doors', { shelves: 4 }), cell(600, 'doors', { shelves: 1 })] }),
     ],
   }),
 };

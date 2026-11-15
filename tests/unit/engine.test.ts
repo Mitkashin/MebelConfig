@@ -1,14 +1,15 @@
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildParts, carcassWidthsFor } from '@/engine/build';
+import { cellCaps, removeCell, splitCell } from '@/engine/grid';
 import { DECORS, SHEET } from '@/engine/catalog';
 import { buildCutList, cutListCsv, isGrained } from '@/engine/cutlist';
 import { derive } from '@/engine/derive';
 import { MODELS, requireModel } from '@/engine/models';
 import { nest } from '@/engine/nesting';
-import { distributeEqual, elementMaxShelves, limits, maxDrawers, maxShelves, normalise, railFits, resizeElement, scaleWidths, shelfSpacing, validate } from '@/engine/rules';
+import { distributeEqual, elementMaxShelves, limits, maxDrawers, maxShelves, normalise, resizeElement, scaleWidths, shelfSpacing, validate } from '@/engine/rules';
 import { decodeConfig, defaultConfig, encodeConfig } from '@/engine/share';
-import type { Config, ElementConfig, Part } from '@/engine/types';
+import type { CellConfig, Config, ElementConfig, Part } from '@/engine/types';
 
 const WALL = { doubleTop: false, mount: 'wall', legHeight: 0 } as const;
 
@@ -25,6 +26,7 @@ function rng(seed: number) {
 
 /** A random but valid configuration of a random model. */
 function randomConfig(seed: number): Config {
+  if (requireModel(MODELS[seed % MODELS.length]!.slug).layout === 'grid') return randomGrid(seed);
   const r = rng(seed);
   const int = (min: number, max: number) => min + Math.floor(r() * (max - min + 1));
   const pick = <T,>(xs: readonly T[]): T => xs[int(0, xs.length - 1)] as T;
@@ -54,7 +56,7 @@ function randomConfig(seed: number): Config {
     handleShape: pick(['bar128', 'bar320', 'longBar', 'knob', 'shell', 'edge', 'topPull'] as const),
     mount: pick(model.mounts),
     legHeight: model.legHeights.length ? pick(model.legHeights) : 0,
-    elements: widths.map((w) => ({ ...template, width: w, rail: false, shelves: 0 })),
+    elements: widths.map((w) => ({ ...template, width: w, rail: false, shelves: 0, cells: [], ownRows: false })),
   };
   const lim = limits(base, model);
   base.elements = widths.map((w): ElementConfig => {
@@ -68,9 +70,78 @@ function randomConfig(seed: number): Config {
       opening: pick(['auto', 'left', 'right', 'bottom'] as const),
       drawers: int(1, Math.max(1, lim.maxDrawers)),
       rail,
+      cells: [],
+      ownRows: false,
     };
   });
   return base;
+}
+
+/** A random wardrobe: columns of random compartments, clamped to their limits by the normaliser. */
+function randomGrid(seed: number): Config {
+  const r = rng(seed * 7919);
+  const int = (min: number, max: number) => min + Math.floor(r() * (max - min + 1));
+  const pick = <T,>(xs: readonly T[]): T => xs[int(0, xs.length - 1)] as T;
+  const model = requireModel('wardrobe-1');
+  const p = model.params;
+  const n = int(1, Math.min(p.elementsMax, Math.floor(p.widthMax / p.elementMin)));
+  const width = int(Math.max(p.widthMin, n * p.elementMin), Math.min(p.widthMax, n * p.elementMax));
+  let widths = distributeEqual(width, n);
+  for (let k = 0; k < 20; k++) {
+    const from = int(0, n - 1);
+    const to = int(0, n - 1);
+    const move = int(0, 300);
+    if (from === to || widths[from]! - move < p.elementMin || widths[to]! + move > p.elementMax) continue;
+    widths = widths.map((w, i) => (i === from ? w - move : i === to ? w + move : w));
+  }
+  const mount = pick(model.mounts);
+  const legHeight = pick(model.legHeights);
+  const base = mount === 'legs' ? legHeight : 0;
+  const height = int(Math.max(p.heightMin, 4 * p.rowMin + base), p.heightMax);
+  const randomHeights = (count: number): number[] => {
+    const hs = Array.from({ length: count }, (_, k) => p.rowMin + (k === count - 1 ? base : 0));
+    let spare = height - hs.reduce((s, h) => s + h, 0);
+    while (spare > 0) {
+      const k = int(0, count - 1);
+      const add = Math.min(spare, int(1, 400));
+      hs[k] = (hs[k] as number) + add;
+      spare -= add;
+    }
+    return hs;
+  };
+  const rows = randomHeights(int(1, p.rowsMax));
+  const cell = (h: number): CellConfig => ({
+    height: h,
+    front: pick(['doors', 'drawers', 'open'] as const),
+    doors: r() < 0.4 ? 2 : 1,
+    glass: r() < 0.25,
+    opening: pick(['auto', 'left', 'right'] as const),
+    shelves: int(0, 6),
+    rails: pick([0, 0, 1, 2] as const),
+    drawers: int(1, 4),
+    turn: pick(['front', 'front', 'left', 'right'] as const),
+  });
+  const config: Config = {
+    ...defaultConfig('wardrobe-1'),
+    width,
+    height,
+    depth: int(p.depthMin, p.depthMax),
+    back: r() < 0.8,
+    mount,
+    legHeight,
+    bodyDecor: pick(DECORS).id,
+    frontDecor: pick(DECORS).id,
+    openingType: r() < 0.8 ? 'handles' : 'push',
+    handleShape: pick(['bar128', 'bar320', 'longBar', 'knob', 'shell', 'edge', 'topPull'] as const),
+    shelfSetback: pick([10, 20, 30]),
+    plinth: mount === 'legs' ? { front: r() < 0.5, left: r() < 0.5, right: r() < 0.5 } : { front: false, left: false, right: false },
+    rows,
+    elements: widths.map((w) => {
+      const own = r() < 0.3;
+      return { ...model.defaults.elements[0]!, width: w, ownRows: own, cells: (own ? randomHeights(int(1, p.rowsMax)) : rows).map(cell) };
+    }),
+  };
+  return normalise(config, model).config;
 }
 
 const SEEDS = Array.from({ length: 420 }, (_, i) => i + 1);
@@ -145,6 +216,22 @@ describe('invariants over random configurations', () => {
 
   it('element widths plus panel thicknesses equal the total width', () => {
     for (const { seed, config } of cases) {
+      if (requireModel(config.model).layout === 'grid') {
+        // Wardrobe columns: every compartment spans exactly its column, and the columns add up to the width.
+        const parts = buildParts(config);
+        let x = 0;
+        config.elements.forEach((el, i) => {
+          el.cells.forEach((_, k) => {
+            const own = parts.filter((q) => q.element === i && q.cell === k);
+            const minX = Math.min(...own.map((q) => q.position[0]));
+            const maxX = Math.max(...own.map((q) => q.position[0] + q.size[0]));
+            expect([minX, maxX], `seed ${seed} c${i}.k${k}`).toEqual([x, x + el.width]);
+          });
+          x += el.width;
+        });
+        expect(x).toBe(config.width);
+        continue;
+      }
       const p = requireModel(config.model).params;
       const parts = buildParts(config);
       const n = config.elements.length;
@@ -243,7 +330,7 @@ describe('invariants over random configurations', () => {
       const d = derive(config);
       expect(d.nest.unplaced, `seed ${seed}`).toEqual([]);
       const placed = d.nest.sheets.flatMap((s) => s.placements.map((pl) => pl.partId)).sort();
-      expect(placed).toEqual(d.parts.map((x) => x.id).sort());
+      expect(placed).toEqual(d.parts.filter((x) => x.material !== 'glass').map((x) => x.id).sort());
       for (const sheet of d.nest.sheets) {
         const stock = d.nest.stocks.find((s) => s.key === sheet.stockKey)!;
         for (const pl of sheet.placements) {
@@ -291,6 +378,9 @@ describe('invariants over random configurations', () => {
       const brackets = config.mount === 'wall' ? config.elements.length * 2 : config.height > 1200 ? config.elements.length : 0;
       expect(qty('wallBracket')).toBe(brackets);
       expect(qty('leg')).toBe(config.mount === 'legs' ? (config.elements.length + 1) * 2 : 0);
+      const glass = d.parts.filter((x) => x.material === 'glass');
+      expect(qty('glassDoor')).toBe(glass.length);
+      expect(qty('hinge') + qty('glassHinge')).toBe(d.parts.filter((x) => x.role === 'door').reduce((s, x) => s + (x.hinges ?? 0), 0));
       expect(qty('hangingRail')).toBe(d.fittings.filter((f) => f.kind === 'rail').length);
     }
   });
@@ -372,17 +462,63 @@ describe('models', () => {
     expect(validate({ ...config, mount: 'wall' }).map((i) => i.path)).toContain('mount');
   });
 
+  it('the wardrobe defaults match the reference layout: 3 columns by 3 rows on 10 cm legs', () => {
+    const config = defaultConfig('wardrobe-1');
+    const d = derive(config);
+    expect(config.rows).toEqual([400, 1400, 600]);
+    expect(d.parts.filter((x) => x.role === 'top')).toHaveLength(9);
+    expect(d.fittings.filter((f) => f.kind === 'rail')).toHaveLength(2);
+    expect(d.fittings.filter((f) => f.kind === 'leg')).toHaveLength(8);
+    // The bottom row stands on the legs and keeps the total height.
+    expect(d.parts.find((x) => x.id === 'c0.k2.bottom')!.position[1]).toBe(100);
+    expect(Math.max(...d.parts.map((x) => x.position[1] + x.size[1]))).toBe(2400);
+  });
+
+  it('wardrobe compartments: remove, split, turn, glass, plinth', () => {
+    const model = requireModel('wardrobe-1');
+    const base = defaultConfig('wardrobe-1');
+    // Removing the top compartment of column 1 gives its height to the one below.
+    const removed = removeCell(base, 0, 0)!;
+    expect(removed.elements[0]!.cells.map((c) => c.height)).toEqual([1800, 600]);
+    expect(removed.elements[0]!.ownRows).toBe(true);
+    expect(validate(removed)).toEqual([]);
+    expect(removeCell({ ...base, elements: [{ ...base.elements[0]!, cells: [base.elements[0]!.cells[0]!] }] }, 0, 0)).toBeNull();
+    // Splitting halves the carcass height.
+    const split = splitCell(base, model, 1, 1)!;
+    expect(split.elements[1]!.cells.map((c) => c.height)).toEqual([400, 700, 700, 600]);
+    expect(validate(split)).toEqual([]);
+    // Only end columns turn, and a turned compartment's doors face sideways.
+    const turned = { ...base, elements: base.elements.map((e, i) => (i === 0 ? { ...e, cells: e.cells.map((c, k) => (k === 1 ? { ...c, turn: 'left' as const, rails: 0 as const } : c)) } : e)) };
+    expect(validate(turned)).toEqual([]);
+    const door = derive(turned).parts.find((x) => x.id === 'c0.k1.door')!;
+    expect(door.facing).toBe('left');
+    expect(door.position[0]).toBe(0);
+    expect(door.size[0]).toBe(18);
+    const middle = { ...base, elements: base.elements.map((e, i) => (i === 1 ? { ...e, cells: e.cells.map((c) => ({ ...c, turn: 'left' as const })) } : e)) };
+    expect(validate(middle).map((x) => x.code)).toContain('turn');
+    // Glass doors are listed but never put on a sheet; plinth needs legs.
+    const glass = { ...base, plinth: { front: true, left: true, right: false }, elements: base.elements.map((e) => ({ ...e, cells: e.cells.map((c) => (c.front === 'doors' ? { ...c, glass: true } : c)) })) };
+    const g = derive(glass);
+    expect(g.cutList.some((r) => r.material === 'glass')).toBe(true);
+    expect(g.nest.sheets.flatMap((s) => s.placements).some((pl) => g.parts.find((x) => x.id === pl.partId)!.material === 'glass')).toBe(false);
+    expect(g.parts.filter((x) => x.role === 'plinth')).toHaveLength(2);
+    expect(validate({ ...glass, mount: 'floor' }).map((x) => x.code)).toContain('plinthLegs');
+    expect(normalise({ ...glass, mount: 'floor' }, model).config.plinth).toEqual({ front: false, left: false, right: false });
+  });
+
   it('a wardrobe rail keeps the hanging space clear and needs height and depth', () => {
     const config = defaultConfig('wardrobe-1');
-    const p = requireModel('wardrobe-1').params;
+    const model = requireModel('wardrobe-1');
+    const p = model.params;
     const d = derive(config);
-    const rail = d.fittings.find((f) => f.id === 'e0.rail')!;
-    const bottom = d.parts.find((x) => x.id === 'e0.bottom')!;
-    expect(rail.position[1] - (bottom.position[1] + 18)).toBeGreaterThanOrEqual(p.hangingSpace);
-    expect(railFits({ ...config, depth: 400 }, p)).toBe(false);
+    const rail = d.fittings.find((f) => f.id === 'c0.k1.rail0')!;
+    const bottom = d.parts.find((x) => x.id === 'c0.k1.bottom')!;
+    expect(rail.position[1] - (bottom.position[1] + 18)).toBeGreaterThanOrEqual(p.railInnerMin - p.railTopOffset - 25);
+    expect(cellCaps(config, model, 0, 1).railsMax).toBe(2);
+    expect(cellCaps(config, model, 0, 0).railsMax).toBe(0);
     expect(validate({ ...config, depth: 400 }).map((i) => i.code)).toContain('railSpace');
-    const { config: lowered, notices } = normalise({ ...config, depth: 400 }, requireModel('wardrobe-1'));
-    expect(lowered.elements.every((e) => !e.rail)).toBe(true);
+    const { config: lowered, notices } = normalise({ ...config, depth: 400 }, model);
+    expect(lowered.elements.every((e) => e.cells.every((c) => c.rails === 0))).toBe(true);
     expect(notices.map((n) => n.code)).toContain('railRemoved');
     expect(validate({ ...defaultConfig('sideboard-1'), elements: defaultConfig('sideboard-1').elements.map((e) => ({ ...e, rail: true })) }).map((i) => i.code)).toContain('unsupported');
   });

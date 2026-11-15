@@ -218,6 +218,28 @@ a tool list.
 
 **Assembly** — 38 illustrated steps with a part-labelling scheme, and a PDF.
 
+## 5b. Wardrobe (plakar), studied 15.11.2026
+
+The reference wardrobe is a different model from the sideboard: columns of
+stacked carcasses ("korpus"). Defaults 120 × 240 × 60 cm, 3 columns × 3
+rows (40 / 140 / 60 cm from the top), on 10 cm legs.
+
+| Area | Control | Reference behaviour (UI and bundle) |
+|---|---|---|
+| Layout | Columns | 1–6, each 30–120 cm; widths add up to the total; equalise |
+| | Rows | 1–4, each at least 25 cm, top to bottom, add up to the total height; "default row heights" |
+| | Heights per column | A column can get its own compartment heights; the others keep the shared rows |
+| Compartment | Front | Doors, drawers (1–4, fronts ≥ 12 cm) or none |
+| | Doors | Single or double; board or glass in an aluminium frame (black or white frame; clear, lightly or dark tinted glass); opening auto / left / right |
+| | Shelves | Count limited by height (15 cm minimum spacing) |
+| | Hanging rail | None, one or two; one needs ≥ 80 cm inside (83.6 cm carcass), two need more |
+| | Facing | Forwards, or turned left / right (only in the end columns); the turned carcass shows its side at the front and opens at the end |
+| | Remove / split | Remove gives the height to the neighbours; split makes two of half the height (needs ≥ 50 cm) |
+| Details | Shelf setback | Shelves 1, 2 or 3 cm shorter than the carcass |
+| | Legs | On legs or on the floor; 5, 6, 10, 15, 20, 30 cm; graphite, black, white |
+| | Plinth | Front (full width), left end, right end; body colour, as tall as the legs, banded all round |
+| Dimensions | | Width 30–360 cm, height 60–278 cm, depth 5–70 cm |
+
 ## 6. Tech stack
 
 | Claim | Evidence |

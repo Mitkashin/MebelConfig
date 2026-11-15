@@ -121,6 +121,8 @@ function pack(items: Item[], length: number, width: number, kerf: number, order:
 export function nest(parts: Part[], kerf = SHEET.kerf, trim = SHEET.trim): NestResult {
   const byStock = new Map<string, { stock: Stock; items: Item[] }>();
   for (const part of parts) {
+    // Glass doors are bought ready-made; only board and HDF go on sheets.
+    if (part.material === 'glass') continue;
     const stock = stockFor(part);
     let entry = byStock.get(stock.key);
     if (!entry) {

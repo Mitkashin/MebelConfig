@@ -2,7 +2,7 @@
 
 import { Edges, Html, Line, OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Component, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { Component, createContext, useContext, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { getDecor, HANDLE_FINISHES } from '@/engine/catalog';
 import type { Config, Fitting, HandlePlacement, Part, Vec3 } from '@/engine/types';
@@ -32,6 +32,9 @@ export interface SceneProps {
   onSelect: (partId: string | null) => void;
   onReady: () => void;
 }
+
+/** Glass door look, passed down rather than through every part. */
+const GlassContext = createContext<{ frame: string; tint: string }>({ frame: '#1e1f21', tint: 'clear' });
 
 const loader = new THREE.TextureLoader();
 const textures = new Map<string, THREE.Texture>();
@@ -130,8 +133,14 @@ interface MoverSpec {
   rotation: [number, number];
 }
 
-function explodeOffset(part: Part, count: number): Vec3 {
+function explodeOffset(part: Part, count: number, cellsInColumn: number): Vec3 {
   const spread = part.element === null ? 0 : (part.element - (count - 1) / 2) * 170;
+  if (part.cell !== undefined) {
+    // Wardrobe compartments also move apart vertically, so stacked carcasses separate.
+    const lift = (cellsInColumn - 1 - part.cell) * 150;
+    const role = part.role === 'top' ? [0, 60, 0] : part.role === 'bottom' ? [0, -60, 0] : part.role === 'side' ? [part.id.endsWith('L') ? -75 : 75, 0, 0] : part.role === 'shelf' ? [0, 0, 160] : part.role === 'back' ? [0, 0, -200] : [0, 0, 320];
+    return [spread + (role[0] as number), lift + (role[1] as number), role[2] as number];
+  }
   switch (part.role) {
     case 'top':
       return [0, part.id === 'top' ? 280 : 160, 0];
@@ -173,23 +182,31 @@ function buildMovers(p: Pick<SceneProps, 'parts' | 'handles' | 'config' | 'doors
     const movable = lead.role === 'door' || lead.role === 'drawerFront';
     const open = movable && !p.exploded && p.doorsOpen !== p.toggled.includes(mover.id);
     // Everything also steps away from the wall, so the backs stay visible in front of it.
-    const offset: Vec3 = p.exploded ? explodeOffset(lead, n).map((v, k) => (k === 2 ? v + 280 : v)) as Vec3 : [0, 0, 0];
+    const cells = lead.element === null ? 1 : (p.config.elements[lead.element]?.cells.length ?? 1);
+    const offset: Vec3 = p.exploded ? (explodeOffset(lead, n, cells).map((v, k) => (k === 2 ? v + 280 : v)) as Vec3) : [0, 0, 0];
     if (lead.role === 'door') {
       const [x, y, z] = lead.position;
-      const [w] = lead.size;
+      const [w, , d] = lead.size;
+      const facing = lead.facing ?? 'front';
       if (lead.hinge === 'bottom') {
         mover.pivot = [x, y, z];
         mover.rotation = [open ? 90 * DEG : 0, 0];
-      } else if (lead.hinge === 'right') {
-        mover.pivot = [x + w, y, z];
-        mover.rotation = [0, open ? 100 * DEG : 0];
       } else {
-        mover.pivot = [x, y, z];
-        mover.rotation = [0, open ? -100 * DEG : 0];
+        // Pivot on the vertical edge on the hinge side (as seen from in front of the door), at its inner face.
+        const left = lead.hinge !== 'right';
+        if (facing === 'left') mover.pivot = [x + w, y, left ? z : z + d];
+        else if (facing === 'right') mover.pivot = [x, y, left ? z + d : z];
+        else mover.pivot = [left ? x : x + w, y, z];
+        // Turned doors stop at 90° so a door hinged on the wall side does not swing into the wall.
+        const angle = facing === 'front' ? 100 : 90;
+        mover.rotation = [0, open ? (left ? -angle : angle) * DEG : 0];
       }
     } else if (lead.role === 'drawerFront' && open) {
       const box = mover.parts.find((x) => x.role === 'drawerBottom');
-      offset[2] += Math.round((box?.size[2] ?? 300) * 0.7);
+      const pull = Math.round(Math.max(...(box?.size ?? [300, 0, 300])) * 0.7);
+      if (lead.facing === 'left') offset[0] -= pull;
+      else if (lead.facing === 'right') offset[0] += pull;
+      else offset[2] += pull;
     }
     mover.offset = offset;
   }
@@ -238,7 +255,51 @@ function Mover({ spec, children }: { spec: MoverSpec; children: ReactNode }) {
   );
 }
 
-function PartMesh({ part, highlight, onSelect }: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
+const glassMaterials = new Map<string, THREE.MeshPhysicalMaterial>();
+function glassMaterial(tint: string): THREE.MeshPhysicalMaterial {
+  let m = glassMaterials.get(tint);
+  if (!m) {
+    const look = tint === 'dark' ? { color: '#3a4044', opacity: 0.72 } : tint === 'light' ? { color: '#9aa3a6', opacity: 0.45 } : { color: '#dfe9ea', opacity: 0.22 };
+    m = new THREE.MeshPhysicalMaterial({ color: look.color, transparent: true, opacity: look.opacity, roughness: 0.08, metalness: 0, depthWrite: false });
+    glassMaterials.set(tint, m);
+  }
+  return m;
+}
+
+/** Glass door: a tinted pane in a 20 mm aluminium frame. */
+function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
+  const tint = useContext(GlassContext);
+  const [x, y, z] = part.position;
+  const [sx, sy, sz] = part.size;
+  const frame = 20;
+  const vertical = part.facing ? 2 : 0;
+  const along = part.size[vertical];
+  const bars: { pos: Vec3; size: Vec3 }[] = [
+    { pos: [0, sy / 2 - frame / 2, 0], size: vertical === 0 ? [sx, frame, sz] : [sx, frame, sz] },
+    { pos: [0, -sy / 2 + frame / 2, 0], size: [sx, frame, sz] },
+    { pos: vertical === 0 ? [-sx / 2 + frame / 2, 0, 0] : [0, 0, -sz / 2 + frame / 2], size: vertical === 0 ? [frame, sy, sz] : [sx, sy, frame] },
+    { pos: vertical === 0 ? [sx / 2 - frame / 2, 0, 0] : [0, 0, sz / 2 - frame / 2], size: vertical === 0 ? [frame, sy, sz] : [sx, sy, frame] },
+  ];
+  const paneSize: Vec3 = vertical === 0 ? [sx - 2 * frame, sy - 2 * frame, 4] : [4, sy - 2 * frame, along - 2 * frame];
+  return (
+    <group position={[x + sx / 2, y + sy / 2, z + sz / 2]} onClick={(e) => { e.stopPropagation(); onSelect(part.id); }}>
+      {bars.map((b, j) => (
+        <mesh key={j} position={b.pos} material={handleMaterial(highlight ?? tint.frame)} castShadow>
+          <boxGeometry args={b.size} />
+        </mesh>
+      ))}
+      <mesh material={glassMaterial(tint.tint)}>
+        <boxGeometry args={paneSize} />
+      </mesh>
+    </group>
+  );
+}
+
+function PartMesh(props: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
+  return props.part.material === 'glass' ? <GlassDoor {...props} /> : <BoardMesh {...props} />;
+}
+
+function BoardMesh({ part, highlight, onSelect }: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
   const invalidate = useThree((st) => st.invalidate);
   const decor = part.decor ? getDecor(part.decor) : undefined;
   const color = part.material === 'hdf' ? HDF_COLOR : (decor?.color ?? '#cccccc');
@@ -482,6 +543,7 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
             <planeGeometry args={[30, 12]} />
             <meshStandardMaterial color="#f4f2ee" roughness={1} />
           </mesh>
+          <GlassContext.Provider value={{ frame: config.glassFrame === 'white' ? '#eeeeec' : '#1e1f21', tint: config.glassTint }}>
           <group position={[(-config.width / 2) * MM, mountHeight * MM, 0]} scale={MM}>
             {movers.map((spec) => (
               <Mover key={spec.id} spec={spec}>
@@ -499,6 +561,7 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
             ))}
             {props.showDimensions && <Dimensions config={config} labels={props.labels} />}
           </group>
+          </GlassContext.Provider>
           <OrbitControls
             ref={controls as never}
             makeDefault
