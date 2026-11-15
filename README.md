@@ -16,6 +16,13 @@ npm run build && npm start
 
 Node 20 or newer.
 
+In `npm run dev`, open the app at `http://localhost:3000`. The dev server only
+serves its scripts to addresses it trusts; `next.config.ts` adds 127.0.0.1 and
+this computer's own name and network addresses. For any other address (a
+tunnel, a custom host name) set `DEV_ORIGINS=host1,host2` before starting, or
+the page will load but stay unresponsive with "Loading 3D view…". The
+production build (`npm run build && npm start`) has no such restriction.
+
 ## Checks
 
 ```bash
