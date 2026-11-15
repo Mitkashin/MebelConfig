@@ -101,6 +101,8 @@ function PartsTable() {
           <tbody ref={body}>
             {rows.map((row) => {
               const isActive = active?.key === row.key;
+              // A row whose parts are all lit clears on click; a row with one part lit (picked in 3D) lights the rest.
+              const allLit = isActive && row.partIds.every((id) => selected.includes(id));
               return (
                 <tr
                   key={row.key}
@@ -109,11 +111,11 @@ function PartsTable() {
                   tabIndex={0}
                   aria-selected={isActive}
                   className={cx('cursor-pointer border-b border-line/70 outline-offset-[-2px] hover:bg-paper', isActive && 'bg-accent-soft')}
-                  onClick={() => select(isActive ? [] : row.partIds)}
+                  onClick={() => select(allLit ? [] : row.partIds)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      select(isActive ? [] : row.partIds);
+                      select(allLit ? [] : row.partIds);
                     }
                   }}
                 >

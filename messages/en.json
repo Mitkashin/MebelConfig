@@ -277,7 +277,8 @@
     "dimensions": "Dimensions",
     "reset": "Reset view",
     "selected": "{name} · {length} × {width}",
-    "hint": "Drag to rotate. Click a part to find it in the cut list."
+    "hint": "Drag to rotate. Click a part to find it in the cut list.",
+    "selectedQty": "{shown} of {qty} identical parts"
   },
   "parts": {
     "top": "Top",
@@ -343,7 +344,7 @@
       "preparing": "Preparing PDF…"
     },
     "parts": {
-      "hint": "Click a row to highlight the part on the model; click a part on the model to find its row.",
+      "hint": "Click a row to highlight all of its parts on the model; click one part on the model to find its row.",
       "lengthNote": "Length runs along the grain of the decor. Sizes are the finished sizes of the parts.",
       "bandAll": "all four edges",
       "bandLong": "{count, plural, one {one long edge} other {both long edges}}",

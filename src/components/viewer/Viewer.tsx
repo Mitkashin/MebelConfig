@@ -57,8 +57,8 @@ export function Viewer() {
   const onSelect = (partId: string | null) => {
     if (!partId) return select([]);
     const part = derived.parts.find((p) => p.id === partId);
-    const row = derived.cutList.find((r) => r.partIds.includes(partId));
-    select(row ? row.partIds : [partId]);
+    // Only the clicked part lights up; its cut-list row is still marked, and clicking the row shows all its parts.
+    select([partId]);
     if (part && (part.role === 'door' || part.role === 'drawerFront') && !exploded) {
       const mover = part.role === 'door' ? part.id : (part.group ?? part.id);
       setToggledState({ stamp, ids: toggled.includes(mover) ? toggled.filter((id) => id !== mover) : [...toggled, mover] });
@@ -130,6 +130,7 @@ export function Viewer() {
             {selectedRow.no}
           </span>
           {t('selected', { name: tp(selectedRow.role), length: f.length(selectedRow.length), width: f.length(selectedRow.width) })}
+          {selectedRow.qty > 1 && <span className="text-muted">{t('selectedQty', { shown: selected.length, qty: selectedRow.qty })}</span>}
         </div>
       )}
       <p className="no-print pointer-events-none absolute right-3 bottom-3 z-10 hidden rounded-full bg-surface/90 px-3 py-1 text-xs text-muted shadow-sm sm:block">{t('hint')}</p>
