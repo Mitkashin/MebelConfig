@@ -1,4 +1,4 @@
-import { BASE_PARAMS, baseConfig, element, type ModelDef } from './base';
+import { BASE_PARAMS, PLINTH_HEIGHTS, PLINTH_SETBACKS, baseConfig, element, type ModelDef } from './base';
 
 /** Sideboard standing on legs. The total height includes the legs. */
 export const standingSideboard: ModelDef = {
@@ -7,8 +7,10 @@ export const standingSideboard: ModelDef = {
   nameKey: 'standingSideboard',
   params: { ...BASE_PARAMS, heightMin: 450, heightMax: 1400 },
   fronts: ['doors', 'open', 'drawers'],
-  mounts: ['legs'],
+  mounts: ['legs', 'plinth'],
   legHeights: [100, 150, 200],
+  plinthHeights: PLINTH_HEIGHTS,
+  plinthSetbacks: PLINTH_SETBACKS,
   features: { doubleTop: true, back: true, handles: true, rail: false, shelfSetback: false, plinth: false, glass: false },
   wallHeight: 0,
   tags: ['size', 'elements', 'doors', 'legs'],

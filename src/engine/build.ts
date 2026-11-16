@@ -2,7 +2,7 @@ import { SHEET } from './catalog';
 import { requireModel, type ModelParams } from './models';
 import { baseHeight, carcassDepth, carcassZone, frontZone, slideLength } from './rules';
 import { buildGrid } from './grid';
-import type { Axis, Config, DecorSlot, Edges, Fitting, HandlePlacement, HandleShape, Hinge, Material, Part, Role, Vec3 } from './types';
+import type { Axis, Config, DecorSlot, Edges, Fitting, GrainDirection, HandlePlacement, HandleShape, Hinge, Material, Part, Role, Vec3 } from './types';
 
 const NO_EDGES: Edges = { l1: false, l2: false, w1: false, w2: false };
 
@@ -37,6 +37,11 @@ export function hingeCount(size: Vec3, hinge: Hinge, p: Pick<ModelParams, 'hinge
 export function carcassWidthsFor(widths: number[], allowance: number): number[] {
   const narrowest = Math.min(...widths);
   return widths.map((w) => (w - narrowest === 1 ? narrowest : w) - allowance);
+}
+
+/** Axis the decor pattern runs along on a front: 1 (up) for vertical grain, 0 (across) for horizontal. */
+export function frontAxis(direction: GrainDirection): Axis {
+  return direction === 'horizontal' ? 0 : 1;
 }
 
 /** Hinge side for an "auto" door: elements in the left half hinge left, the rest right. */
@@ -93,7 +98,7 @@ export function buildParts(config: Config): Part[] {
   const cd = carcassDepth(config, p);
   const z0 = config.back ? p.back : 0;
   const zFront = z0 + cd + p.frontGap;
-  // Legs lift the whole carcass; the top stays at the overall height.
+  // Legs or a plinth lift the whole carcass; the top stays at the overall height.
   const base = baseHeight(config);
 
   // Top: one board, or two glued boards for a 36 mm top. Front and both ends are banded.
@@ -114,6 +119,8 @@ export function buildParts(config: Config): Part[] {
   const shelfDepth = cd - Math.min(p.shelfInset, Math.floor(cd / 2));
   const doorHeight = frontZone(config, p);
   const doorY = base + Math.floor((zone - t - doorHeight) / 2);
+  const doorAxis = frontAxis(config.frontGrain.doors);
+  const carcassXs: [number, number][] = [];
 
   config.elements.forEach((el, i) => {
     const cw = carcassWidths[i] as number;
@@ -154,29 +161,57 @@ export function buildParts(config: Config): Part[] {
     if (el.front === 'doors') {
       if (el.doors === 2) {
         const leaf = Math.floor((cw - 2 * p.doorWidthGap) / 2);
-        add({ id: id('doorL'), role: 'door', element: i, slot: 'front', position: [x0 + gapSide, doorY, zFront], size: [leaf, doorHeight, t], lengthAxis: 1, edges: allEdges, hinge: 'left' });
-        add({ id: id('doorR'), role: 'door', element: i, slot: 'front', position: [x0 + cw - (p.doorWidthGap - gapSide) - leaf, doorY, zFront], size: [leaf, doorHeight, t], lengthAxis: 1, edges: allEdges, hinge: 'right' });
+        add({ id: id('doorL'), role: 'door', element: i, slot: 'front', position: [x0 + gapSide, doorY, zFront], size: [leaf, doorHeight, t], lengthAxis: doorAxis, edges: allEdges, hinge: 'left' });
+        add({ id: id('doorR'), role: 'door', element: i, slot: 'front', position: [x0 + cw - (p.doorWidthGap - gapSide) - leaf, doorY, zFront], size: [leaf, doorHeight, t], lengthAxis: doorAxis, edges: allEdges, hinge: 'right' });
       } else {
         const dw = cw - p.doorWidthGap;
         const hinge: Hinge = el.opening === 'auto' ? (dw > doorHeight ? 'bottom' : autoHinge(i, n)) : el.opening;
-        add({ id: id('door'), role: 'door', element: i, slot: 'front', position: [x0 + gapSide, doorY, zFront], size: [dw, doorHeight, t], lengthAxis: 1, edges: allEdges, hinge });
+        add({ id: id('door'), role: 'door', element: i, slot: 'front', position: [x0 + gapSide, doorY, zFront], size: [dw, doorHeight, t], lengthAxis: doorAxis, edges: allEdges, hinge });
       }
     }
 
     if (el.front === 'drawers') {
-      addDrawers(add, p, { index: i, count: el.drawers, x0, cw, doorY, doorHeight, zFront, cd });
+      addDrawers(add, p, { index: i, count: el.drawers, x0, cw, doorY, doorHeight, zFront, cd, axis: frontAxis(config.frontGrain.drawers) });
     }
 
+    carcassXs.push([x0, cw]);
     x0 += cw;
   });
 
+  if (config.mount === 'plinth') addPlinth(add, config, t, carcassXs);
   return parts;
+}
+
+/**
+ * Plinth base: a frame of board in the body decor under the carcasses, as
+ * tall as the base height, set back from the front and both ends. A front
+ * panel (banded all round) and a back panel run the full width; side panels
+ * and supports under the carcass joints (and under wide carcasses) sit
+ * between them and carry the levellers.
+ */
+function addPlinth(add: (s: Spec) => void, config: Config, t: number, carcasses: [number, number][]) {
+  const h = config.legHeight;
+  const s = config.plinthSetback;
+  const W = config.width;
+  const front = config.depth - s - t;
+  const inner = front - t;
+  add({ id: 'plinth.front', role: 'plinth', element: null, position: [s, 0, front], size: [W - 2 * s, h, t], lengthAxis: 0, edges: { l1: true, l2: true, w1: true, w2: true } });
+  add({ id: 'plinth.back', role: 'plinth', element: null, position: [s, 0, 0], size: [W - 2 * s, h, t], lengthAxis: 0 });
+  add({ id: 'plinth.left', role: 'plinth', element: null, position: [s, 0, t], size: [t, h, inner], lengthAxis: 2 });
+  add({ id: 'plinth.right', role: 'plinth', element: null, position: [W - s - t, 0, t], size: [t, h, inner], lengthAxis: 2 });
+  // Supports under each joint between carcasses, and in the middle of any carcass wider than a metre.
+  const xs: number[] = [];
+  carcasses.forEach(([x, w], i) => {
+    if (i > 0) xs.push(x - Math.floor(t / 2));
+    if (w > 1000) xs.push(x + Math.floor((w - t) / 2));
+  });
+  xs.forEach((x, k) => add({ id: `plinth.support${k}`, role: 'plinth', element: null, position: [x, 0, t], size: [t, h, inner], lengthAxis: 2 }));
 }
 
 function addDrawers(
   add: (s: Spec) => void,
   p: ModelParams,
-  o: { index: number; count: number; x0: number; cw: number; doorY: number; doorHeight: number; zFront: number; cd: number },
+  o: { index: number; count: number; x0: number; cw: number; doorY: number; doorHeight: number; zFront: number; cd: number; axis: Axis },
 ) {
   const t = p.board;
   const boxLength = slideLength(o.cd, p);
@@ -195,7 +230,7 @@ function addDrawers(
     const id = (name: string) => `${group}.${name}`;
     const boxHeight = fh - p.drawerBoxReduction;
     const by = y + p.drawerBoxLift;
-    add({ id: id('front'), role: 'drawerFront', element: o.index, slot: 'front', group, position: [o.x0 + Math.floor(p.doorWidthGap / 2), y, o.zFront], size: [frontWidth, fh, t], lengthAxis: 1, edges: { l1: true, l2: true, w1: true, w2: true } });
+    add({ id: id('front'), role: 'drawerFront', element: o.index, slot: 'front', group, position: [o.x0 + Math.floor(p.doorWidthGap / 2), y, o.zFront], size: [frontWidth, fh, t], lengthAxis: o.axis, edges: { l1: true, l2: true, w1: true, w2: true } });
     add({ id: id('bottom'), role: 'drawerBottom', element: o.index, material: 'hdf', group, position: [bx, by, bz], size: [boxWidth, p.back, boxLength], lengthAxis: boxLength >= boxWidth ? 2 : 0 });
     const sideY = by + p.back;
     add({ id: id('sideL'), role: 'drawerSide', element: o.index, group, position: [bx, sideY, bz], size: [t, boxHeight, boxLength], lengthAxis: 2, edges: { l2: true } });

@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { RATES, SHEET } from '@/engine/catalog';
+import { SERVICES, SHEET } from '@/engine/catalog';
 import { cutListCsv } from '@/engine/cutlist';
 import type { PriceOverrides } from '@/engine/derive';
 import { requireModel } from '@/engine/models';
@@ -46,14 +46,25 @@ function useLabels() {
     if (key === 'glassDoor' && item.detail) return thw('glassDoorDetail', { area: f.count(Number(item.detail.area)), frame: ts(`frames.${item.detail.frame}` as 'frames.black'), tint: ts(`tints.${item.detail.tint}` as 'tints.clear') });
     if (key === 'leg' && item.detail) return thw('legDetail', { height: f.mm(Number(item.detail.height)), finish: ts(`finishes.${item.detail.finish}` as 'finishes.grey') });
     if (key === 'drawerSlide' && item.detail) return thw('drawerSlideDetail', { length: f.mm(Number(item.detail.length)) });
+    if (key === 'backNail' && item.detail) return thw('backNailDetail', { count: Number(item.detail.count) });
+    if (key === 'hangingRail' && item.detail) return thw('hangingRailDetail', { count: Number(item.detail.count) });
     return thw(`items.${key}` as 'items.hinge');
   };
   const unit = (u: PriceLine['unit'], qty: number) => (u === 'm' ? f.meters(qty) : t(`units.${u}`, { count: qty }));
   const stockName = (stock: Pick<Stock, 'material' | 'decor' | 'thickness'>) => t('stockName', { name: f.material(stock), thickness: f.mm(stock.thickness) });
   const lineName = (line: PriceLine) => {
     if (line.kind === 'sheet') return stockName({ material: line.detail?.material === 'hdf' ? 'hdf' : 'board', decor: String(line.detail?.decor ?? '') || null, thickness: Number(line.detail?.thickness) });
-    if (line.kind === 'banding') return t('price.banding');
-    if (line.kind === 'cutting') return t('price.cutting');
+    if (line.key === 'banding') return t('price.banding');
+    if (line.kind === 'banding') {
+      const decor = String(line.detail?.decor ?? '');
+      const name = f.decorName(decor);
+      const tape = String(line.detail?.tape ?? '');
+      if (line.detail?.match === 'exact') return t('price.band', { tape });
+      return line.detail?.match === 'colour' ? t('price.bandColour', { tape, name }) : t('price.bandEstimate', { name });
+    }
+    if (line.key === 'bandingService') return t('price.bandingService');
+    if (line.key === 'hingeDrilling') return t('price.hingeDrilling');
+    if (line.kind === 'cutting') return t(line.detail?.material === 'hdf' ? 'price.cuttingHdf' : 'price.cuttingBoard');
     return hardwareName(line);
   };
   return { t, tp, f, banding, elements, note, hardwareName, unit, stockName, lineName };
@@ -234,6 +245,9 @@ function PriceTable() {
   const sheetLines = price.lines.filter((l) => l.kind === 'sheet');
   const used = sheetLines.reduce((s, l) => s + (l.total * Number(l.detail?.utilisation ?? 0)) / 100, 0);
   const sheetsTotal = sheetLines.reduce((s, l) => s + l.total, 0);
+  const bandingMeters = useConfigurator((s) => s.derived.bandingMeters);
+  // What banding costs per metre now (band and gluing), shown as the hint for the override.
+  const bandingNow = Math.round(price.lines.filter((l) => l.kind === 'banding' || l.key === 'bandingService').reduce((s, l) => s + l.total, 0) / Math.max(bandingMeters, 0.01));
 
   const apply = (e: FormEvent) => {
     e.preventDefault();
@@ -251,7 +265,7 @@ function PriceTable() {
     const b = num('banding');
     const c = num('cutting');
     if (b !== undefined) next.bandingPerM = b;
-    if (c !== undefined) next.cuttingPerM = c;
+    if (c !== undefined) next.cuttingPerSheet = c;
     setOverrides(next);
   };
 
@@ -295,7 +309,7 @@ function PriceTable() {
           <p className="text-sm text-muted">{t('price.ownHelp')}</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          {[...sheetLines.map((l) => ({ key: l.key, label: t('price.ownSheet', { name: lineName(l) }), current: l.unitPrice })), { key: 'banding', label: t('price.ownBanding'), current: overrides.bandingPerM ?? RATES.bandingPerM }, { key: 'cutting', label: t('price.ownCutting'), current: overrides.cuttingPerM ?? RATES.cuttingPerM }].map((field) => (
+          {[...sheetLines.map((l) => ({ key: l.key, label: t('price.ownSheet', { name: lineName(l) }), current: l.unitPrice })), { key: 'banding', label: t('price.ownBanding'), current: overrides.bandingPerM ?? bandingNow }, { key: 'cutting', label: t('price.ownCutting'), current: overrides.cuttingPerSheet ?? SERVICES.cuttingPerSheet.board }].map((field) => (
             <label key={field.key} className="grid gap-1 text-sm">
               {field.label}
               <input type="text" inputMode="decimal" className="h-9 rounded-lg border border-line px-2 tabular-nums" placeholder={String(field.current)} value={draft[field.key] ?? ''} onChange={(e) => setDraft({ ...draft, [field.key]: e.target.value })} />
@@ -327,8 +341,15 @@ function HardwareTable() {
         </thead>
         <tbody>
           {hardware.map((item) => (
-            <tr key={item.key} className="border-b border-line/70" data-item={item.key} data-qty={item.qty}>
-              <td className={td}>{hardwareName(item)}</td>
+            <tr key={item.key} className="border-b border-line/70" data-item={item.key} data-qty={item.qty} data-count={item.detail?.count}>
+              <td className={td}>
+                {hardwareName(item)}
+                {item.source && (
+                  <a href={item.source} target="_blank" rel="noopener noreferrer" className="ml-2 text-xs font-medium text-accent underline-offset-2 hover:underline">
+                    {t('hardware.atSupplier')}
+                  </a>
+                )}
+              </td>
               <td className={cx(td, 'text-right tabular-nums')}>{unit(item.unit, item.qty)}</td>
             </tr>
           ))}

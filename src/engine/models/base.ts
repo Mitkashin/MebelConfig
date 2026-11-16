@@ -65,6 +65,10 @@ export interface ModelDef {
   fronts: Front[];
   mounts: Mount[];
   legHeights: number[];
+  /** Plinth heights offered when the model can stand on a plinth (`mounts` includes `plinth`). */
+  plinthHeights: number[];
+  /** How far the plinth can sit back from the front and ends (mm); 0 = flush. */
+  plinthSetbacks: number[];
   features: { doubleTop: boolean; back: boolean; handles: boolean; rail: boolean; shelfSetback: boolean; plinth: boolean; glass: boolean };
   /** Height of the underside above the floor when hung on the wall (3D scene only). */
   wallHeight: number;
@@ -72,6 +76,10 @@ export interface ModelDef {
   tags: string[];
   defaults: Config;
 }
+
+/** Plinth options for the row models that stand on the floor. */
+export const PLINTH_HEIGHTS = [60, 80, 100, 120, 150];
+export const PLINTH_SETBACKS = [0, 30, 50];
 
 export const BASE_PARAMS: ModelParams = {
   board: 18,
@@ -137,6 +145,8 @@ export function baseConfig(model: string, patch: Partial<Config> & Pick<Config, 
     rows: [],
     shelfSetback: 10,
     plinth: { front: false, left: false, right: false },
+    plinthSetback: 30,
+    frontGrain: { doors: 'vertical', drawers: 'vertical' },
     glassFrame: 'black',
     glassTint: 'clear',
     ...patch,

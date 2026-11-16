@@ -1,4 +1,4 @@
-import { BASE_PARAMS, baseConfig, element, type ModelDef } from './base';
+import { BASE_PARAMS, PLINTH_HEIGHTS, PLINTH_SETBACKS, baseConfig, element, type ModelDef } from './base';
 
 /** Nightstand: small, with drawers and/or an open shelf, on legs or hung on the wall. */
 export const nightstand: ModelDef = {
@@ -7,8 +7,10 @@ export const nightstand: ModelDef = {
   nameKey: 'nightstand',
   params: { ...BASE_PARAMS, widthMin: 300, widthMax: 900, heightMin: 300, heightMax: 800, depthMin: 300, depthMax: 500, elementsMax: 2 },
   fronts: ['drawers', 'open', 'doors'],
-  mounts: ['legs', 'wall'],
+  mounts: ['legs', 'plinth', 'wall'],
   legHeights: [100, 150, 200],
+  plinthHeights: PLINTH_HEIGHTS,
+  plinthSetbacks: PLINTH_SETBACKS,
   features: { doubleTop: false, back: true, handles: true, rail: false, shelfSetback: false, plinth: false, glass: false },
   wallHeight: 300,
   tags: ['size', 'elements', 'drawers', 'legs'],

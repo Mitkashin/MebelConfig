@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { DECOR_CATEGORIES, DECORS, getDecor, HANDLE_FINISHES, HANDLE_SHAPES, type Decor, type DecorBrand, type DecorCategory } from '@/engine/catalog';
 import { requireModel } from '@/engine/models';
 import { drawerDepthMin, elementMaxShelves, frontZone, limits, railHeightMin, shelfSpacing } from '@/engine/rules';
-import type { Front, HandleFinish, Mount, Opening } from '@/engine/types';
+import type { Front, GrainDirection, HandleFinish, Mount, Opening } from '@/engine/types';
 import { useFormat } from '@/lib/format';
 import { useConfigurator } from '@/store/configurator';
 import { Counter, cx, LockToggle, NumberField, Segmented, StepCard, Switch } from '../ui/controls';
@@ -274,6 +274,28 @@ function DecorPicker({ slot }: { slot: 'bodyDecor' | 'frontDecor' }) {
   );
 }
 
+/** Which way the pattern runs on door leaves and drawer fronts (wood grain up or across). */
+function FrontGrain() {
+  const t = useTranslations('steps.colours.grain');
+  const { config, model } = useModel();
+  const patch = useConfigurator((s) => s.patch);
+  const decor = getDecor(config.frontDecor);
+  const fronts = model.layout === 'grid' ? config.elements.flatMap((e) => e.cells.map((c) => ({ front: c.front, glass: c.glass }))) : config.elements.map((e) => ({ front: e.front, glass: false }));
+  const hasDoors = fronts.some((x) => x.front === 'doors' && !x.glass);
+  const hasDrawers = fronts.some((x) => x.front === 'drawers');
+  // Plain colours have no direction to turn.
+  if (!decor || decor.category === 'solid' || (!hasDoors && !hasDrawers)) return null;
+  const options = (['vertical', 'horizontal'] as GrainDirection[]).map((v) => ({ value: v, label: t(v) }));
+  return (
+    <div className="grid gap-3 rounded-xl border border-line p-3" data-testid="front-grain">
+      <h4 className="text-sm font-semibold">{t('title')}</h4>
+      {hasDoors && <Segmented label={t('doors')} value={config.frontGrain.doors} options={options} onChange={(doors) => patch({ frontGrain: { ...config.frontGrain, doors } })} />}
+      {hasDrawers && <Segmented label={t('drawers')} value={config.frontGrain.drawers} options={options} onChange={(drawers) => patch({ frontGrain: { ...config.frontGrain, drawers } })} />}
+      <p className="text-sm text-muted">{decor.grain ? t('help') : t('helpPattern')}</p>
+    </div>
+  );
+}
+
 function Colours() {
   const t = useTranslations('steps.colours');
   const { model } = useModel();
@@ -282,6 +304,7 @@ function Colours() {
     <>
       <DecorPicker slot="bodyDecor" />
       {hasFronts && <DecorPicker slot="frontDecor" />}
+      {hasFronts && <FrontGrain />}
       <p className="text-xs text-muted">{t('disclaimer')}</p>
     </>
   );
@@ -298,6 +321,13 @@ function Details() {
       {model.layout === 'grid' && <WardrobeDetails />}
       {model.mounts.length > 1 && (
         <Segmented label={t('mount')} value={config.mount} options={model.mounts.map((m: Mount) => ({ value: m, label: t(`mounts.${m}`) }))} onChange={(mount) => patch({ mount })} />
+      )}
+      {config.mount === 'plinth' && (
+        <>
+          <Segmented label={t('plinthHeight')} value={config.legHeight} options={model.plinthHeights.map((h) => ({ value: h, label: f.length(h) }))} onChange={(legHeight) => patch({ legHeight })} />
+          <Segmented label={t('plinthSetback')} value={config.plinthSetback} options={model.plinthSetbacks.map((v) => ({ value: v, label: v === 0 ? t('plinthFlush') : f.length(v) }))} onChange={(plinthSetback) => patch({ plinthSetback })} />
+          <p className="text-sm text-muted">{t('plinthBaseHelp')}</p>
+        </>
       )}
       {config.mount === 'legs' && (
         <>

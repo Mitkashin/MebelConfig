@@ -1,4 +1,4 @@
-import { autoHinge, handleFor, hingeCount } from './build';
+import { autoHinge, frontAxis, handleFor, hingeCount } from './build';
 import { SHEET } from './catalog';
 import { requireModel, type ModelDef, type ModelParams } from './models';
 import type { Axis, CellConfig, Config, Edges, ElementConfig, Fitting, HandlePlacement, Hinge, Issue, Material, Notice, Part, Role, Turn, Vec3 } from './types';
@@ -132,6 +132,8 @@ export function buildGrid(config: Config): GridResult {
   const n = config.elements.length;
   const base = legsHeight(config);
   const withHandles = model.features.handles && config.openingType === 'handles';
+  const doorAxis = frontAxis(config.frontGrain.doors);
+  const drawerAxis = frontAxis(config.frontGrain.drawers);
   const result: GridResult = { parts: [], handles: [], fittings: [] };
 
   const toPart = (s: LocalSpec, i: number, k: number, turn: Turn, colX: number, colW: number, y0: number): Part => {
@@ -210,12 +212,12 @@ export function buildGrid(config: Config): GridResult {
         const all = c.glass ? {} : { l1: true, l2: true, w1: true, w2: true };
         if (c.doors === 2) {
           const leaf = Math.floor((w - 2 * g) / 2);
-          fronts.push({ id: id('doorL'), role: 'door', material, slot: 'front', position: [Math.floor(g / 2), dy, zFront], size: [leaf, dh, t], lengthAxis: 1, edges: all, hinge: 'left' });
-          fronts.push({ id: id('doorR'), role: 'door', material, slot: 'front', position: [w - (g - Math.floor(g / 2)) - leaf, dy, zFront], size: [leaf, dh, t], lengthAxis: 1, edges: all, hinge: 'right' });
+          fronts.push({ id: id('doorL'), role: 'door', material, slot: 'front', position: [Math.floor(g / 2), dy, zFront], size: [leaf, dh, t], lengthAxis: doorAxis, edges: all, hinge: 'left' });
+          fronts.push({ id: id('doorR'), role: 'door', material, slot: 'front', position: [w - (g - Math.floor(g / 2)) - leaf, dy, zFront], size: [leaf, dh, t], lengthAxis: doorAxis, edges: all, hinge: 'right' });
         } else {
           // A turned door hinges on the room side, away from the wall it stands against.
           const hinge: Hinge = c.opening !== 'auto' ? c.opening : turn === 'left' ? 'right' : turn === 'right' ? 'left' : autoHinge(i, n);
-          fronts.push({ id: id('door'), role: 'door', material, slot: 'front', position: [Math.floor(g / 2), dy, zFront], size: [w - g, dh, t], lengthAxis: 1, edges: all, hinge });
+          fronts.push({ id: id('door'), role: 'door', material, slot: 'front', position: [Math.floor(g / 2), dy, zFront], size: [w - g, dh, t], lengthAxis: doorAxis, edges: all, hinge });
         }
       } else if (c.front === 'drawers') {
         const slide = slideFor(cd, p);
@@ -234,7 +236,7 @@ export function buildGrid(config: Config): GridResult {
           const gid = (name: string) => `${group}.${name}`;
           const boxH = fh - p.drawerBoxReduction;
           const by = y + p.drawerBoxLift;
-          fronts.push({ id: gid('front'), role: 'drawerFront', slot: 'front', group, position: [Math.floor(p.doorWidthGap / 2), y, zFront], size: [w - p.doorWidthGap, fh, t], lengthAxis: 1, edges: { l1: true, l2: true, w1: true, w2: true } });
+          fronts.push({ id: gid('front'), role: 'drawerFront', slot: 'front', group, position: [Math.floor(p.doorWidthGap / 2), y, zFront], size: [w - p.doorWidthGap, fh, t], lengthAxis: drawerAxis, edges: { l1: true, l2: true, w1: true, w2: true } });
           add({ id: gid('bottom'), role: 'drawerBottom', material: 'hdf', group, position: [bx, by, bz], size: [boxW, p.back, slide], lengthAxis: slide >= boxW ? 2 : 0 });
           add({ id: gid('sideL'), role: 'drawerSide', group, position: [bx, by + p.back, bz], size: [t, boxH, slide], lengthAxis: 2, edges: { l2: true } });
           add({ id: gid('sideR'), role: 'drawerSide', group, position: [bx + boxW - t, by + p.back, bz], size: [t, boxH, slide], lengthAxis: 2, edges: { l2: true } });

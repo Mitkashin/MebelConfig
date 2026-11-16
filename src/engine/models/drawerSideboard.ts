@@ -1,4 +1,4 @@
-import { BASE_PARAMS, baseConfig, element, type ModelDef } from './base';
+import { BASE_PARAMS, PLINTH_HEIGHTS, PLINTH_SETBACKS, baseConfig, element, type ModelDef } from './base';
 
 /** Chest of drawers: drawers by default, on legs or hung on the wall. Deep enough for full-length slides. */
 export const drawerSideboard: ModelDef = {
@@ -7,8 +7,10 @@ export const drawerSideboard: ModelDef = {
   nameKey: 'drawerSideboard',
   params: { ...BASE_PARAMS, heightMin: 400, heightMax: 1400, depthMin: 300 },
   fronts: ['drawers', 'doors', 'open'],
-  mounts: ['legs', 'wall'],
+  mounts: ['legs', 'plinth', 'wall'],
   legHeights: [100, 150, 200],
+  plinthHeights: PLINTH_HEIGHTS,
+  plinthSetbacks: PLINTH_SETBACKS,
   features: { doubleTop: true, back: true, handles: true, rail: false, shelfSetback: false, plinth: false, glass: false },
   wallHeight: 300,
   tags: ['size', 'elements', 'drawers', 'legs'],

@@ -40,7 +40,7 @@ npm run screenshots  # regenerates docs/screenshots and docs/sample-cut-list-mk.
 |---|---|
 | `src/engine` | Framework-free core: models, rules, `buildParts`, cut list, nesting, hardware, price, share link |
 | `src/engine/models` | Model definitions (data). Add a model here; no UI or viewer change needed |
-| `src/engine/catalog.ts` | Decors, sheet sizes, prices (placeholders) |
+| `src/engine/catalog.ts` | Decors, sheet sizes, supplier prices and services |
 | `src/store` | Zustand store: config, undo/redo, view state; saved designs |
 | `src/components` | Shell, steps, summary, viewer (react-three-fiber), results |
 | `messages` | `mk.json`, `en.json` — all user-facing text |
@@ -75,6 +75,6 @@ model up automatically and run every invariant against it.
 
 ## Replace before going live
 
-Board decors and their prices come from the supplier Soloprom (`src/engine/decors.json`, images in `public/decors/`); HDF, banding, cutting and hardware prices and the brand name are placeholders (`docs/assumptions.md`).
+Board decors, edge bands, HDF, cutting, banding and hardware are priced as listed by the supplier Soloprom (`src/engine/decors.json`, `src/engine/catalog.ts`, images in `public/decors/`); a few items Soloprom does not sell and the brand name are placeholders (`docs/assumptions.md`).
 The inquiry endpoint (`src/app/api/inquiry/route.ts`) validates and logs; wire
 it to email or a CRM.

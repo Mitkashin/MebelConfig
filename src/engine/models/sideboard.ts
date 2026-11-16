@@ -9,6 +9,8 @@ export const sideboard: ModelDef = {
   fronts: ['doors', 'open', 'drawers'],
   mounts: ['wall'],
   legHeights: [],
+  plinthHeights: [],
+  plinthSetbacks: [],
   features: { doubleTop: true, back: true, handles: true, rail: false, shelfSetback: false, plinth: false, glass: false },
   wallHeight: 400,
   tags: ['size', 'elements', 'doors'],

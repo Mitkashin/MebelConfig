@@ -79,6 +79,10 @@ const SHOTS: { name: string; config: Config; click?: string[]; locale?: string; 
   },
   { name: '15-standing-sideboard', config: defaultConfig('standing-sideboard-1') },
   { name: '16-chest-of-drawers-open', config: defaultConfig('drawer-sideboard-1'), click: ['toggle-doors'] },
+  {
+    name: '20-chest-plinth-grain-across',
+    config: { ...defaultConfig('drawer-sideboard-1'), mount: 'plinth', legHeight: 80, plinthSetback: 30, bodyDecor: 'u708-st9', frontDecor: 'h1145-st10', handleShape: 'bar320', handleFinish: 'black', frontGrain: { doors: 'vertical', drawers: 'horizontal' } },
+  },
   { name: '08-mobile', config: base, viewport: { width: 390, height: 844 } },
 ];
 
