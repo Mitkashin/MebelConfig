@@ -676,6 +676,11 @@ describe('plinth', () => {
     expect(front.size).toEqual([config.width - 60, 100, 18]);
     expect(front.decor).toBe(config.bodyDecor);
     expect(front.edges).toEqual({ l1: true, l2: true, w1: true, w2: true });
+    // Set back from the wall side too: the back panel and the sides start 30 mm in.
+    expect(part('plinth.back').position).toEqual([30, 0, 30]);
+    const left = part('plinth.left');
+    expect(left.position).toEqual([30, 0, 48]);
+    expect(left.position[2] + left.size[2]).toBe(front.position[2]);
     // Two elements: one support under the joint.
     expect(d.parts.filter((x) => x.role === 'plinth').map((x) => x.id).sort()).toEqual(['plinth.back', 'plinth.front', 'plinth.left', 'plinth.right', 'plinth.support0']);
     expect(d.fittings.filter((f) => f.kind === 'leg')).toHaveLength(0);
@@ -708,5 +713,17 @@ describe('plinth', () => {
     delete older.frontGrain;
     const link = '3.' + Buffer.from(JSON.stringify(older)).toString('base64url');
     expect(decodeConfig(link)).toEqual(defaultConfig('drawer-sideboard-1'));
+  });
+});
+
+describe('chest of drawers depth', () => {
+  it('goes up to 90 cm; the drawers use the longest slide', () => {
+    const deep = { ...defaultConfig('drawer-sideboard-1'), depth: 900 };
+    expect(validate(deep)).toEqual([]);
+    expect(validate({ ...deep, depth: 901 }).map((i) => i.path)).toContain('depth');
+    const d = derive(deep);
+    expect(d.hardware.find((h) => h.key === 'drawerSlide')?.detail?.length).toBe(550);
+    const side = d.parts.find((x) => x.id === 'e0.sideL')!;
+    expect(side.size[2]).toBe(900 - 18 - 4 - 3);
   });
 });

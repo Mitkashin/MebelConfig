@@ -389,6 +389,8 @@
     "openFronts": "Отвори ги фронтовите",
     "closeFronts": "Затвори ги фронтовите",
     "exploded": "Расклопен приказ",
+    "seeThrough": "Провидно",
+    "transparency": "Провидност",
     "dimensions": "Мерки",
     "reset": "Врати го погледот",
     "selected": "{name} · {length} × {width}",

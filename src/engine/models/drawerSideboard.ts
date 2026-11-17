@@ -5,7 +5,7 @@ export const drawerSideboard: ModelDef = {
   layout: 'row',
   slug: 'drawer-sideboard-1',
   nameKey: 'drawerSideboard',
-  params: { ...BASE_PARAMS, heightMin: 400, heightMax: 1400, depthMin: 300 },
+  params: { ...BASE_PARAMS, heightMin: 400, heightMax: 1400, depthMin: 300, depthMax: 900 },
   fronts: ['drawers', 'doors', 'open'],
   mounts: ['legs', 'plinth', 'wall'],
   legHeights: [100, 150, 200],

@@ -25,6 +25,50 @@ const toolBase = 'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium s
 const toolOff = `${toolBase} border-line bg-surface/95 hover:border-accent hover:text-accent`;
 const toolOn = `${toolBase} border-accent bg-accent text-white`;
 
+/** Exploded view only: turn the boards see-through, with a slider for how much. */
+function SeeThroughControl({ className, testId }: { className: string; testId: string }) {
+  const t = useTranslations('viewer');
+  const seeThrough = useScene((s) => s.seeThrough);
+  const opacity = useScene((s) => s.opacity);
+  const setSeeThrough = useScene((s) => s.setSeeThrough);
+  const setOpacity = useScene((s) => s.setOpacity);
+  const amount = Math.round((1 - opacity) * 100);
+  return (
+    <div className={`no-print z-20 w-56 rounded-2xl border border-line bg-surface/95 p-2.5 text-sm shadow-lg backdrop-blur ${className}`} data-testid={testId}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium">{t('seeThrough')}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={seeThrough}
+          aria-label={t('seeThrough')}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition ${seeThrough ? 'bg-accent' : 'bg-line'}`}
+          onClick={() => setSeeThrough(!seeThrough)}
+        >
+          <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${seeThrough ? 'translate-x-5' : ''}`} />
+        </button>
+      </div>
+      {seeThrough && (
+        <label className="mt-2 flex items-center gap-2">
+          <span className="text-xs text-muted">{t('transparency')}</span>
+          <input
+            type="range"
+            min={10}
+            max={90}
+            step={5}
+            value={amount}
+            onChange={(e) => setOpacity(1 - Number(e.target.value) / 100)}
+            aria-label={t('transparency')}
+            aria-valuetext={`${amount} %`}
+            className="min-w-0 flex-1 accent-accent"
+          />
+          <span className="w-9 text-right text-xs tabular-nums">{amount}%</span>
+        </label>
+      )}
+    </div>
+  );
+}
+
 export function Viewer() {
   const t = useTranslations('viewer');
   const tp = useTranslations('parts');
@@ -46,6 +90,8 @@ export function Viewer() {
   const spin = useScene((s) => s.spin);
   const setSpin = useScene((s) => s.setSpin);
   const hydrateScene = useScene((s) => s.hydrate);
+  const seeThrough = useScene((s) => s.seeThrough);
+  const opacity = useScene((s) => s.opacity);
   useEffect(() => hydrateScene(), [hydrateScene]);
 
   const [sceneOpen, setSceneOpen] = useState(false);
@@ -142,6 +188,7 @@ export function Viewer() {
         wall={wall}
         spin={spin}
         captureRef={captureRef}
+        seeThrough={exploded && seeThrough ? opacity : null}
         fallback={<Placeholder text={t('unsupported')} />}
       />
       <div className="no-print absolute right-2 bottom-2 left-2 z-10 flex gap-1.5 overflow-x-auto sm:top-3 sm:right-3 sm:bottom-auto sm:left-3 sm:flex-wrap sm:justify-end sm:gap-2 sm:overflow-visible">
@@ -150,9 +197,13 @@ export function Viewer() {
             {doorsOpen ? t('closeFronts') : t('openFronts')}
           </button>
         )}
-        <button type="button" className={exploded ? toolOn : toolOff} aria-pressed={exploded} onClick={() => toggle('exploded')} data-testid="toggle-exploded">
-          {t('exploded')}
-        </button>
+        <div className="relative shrink-0">
+          <button type="button" className={exploded ? toolOn : toolOff} aria-pressed={exploded} onClick={() => toggle('exploded')} data-testid="toggle-exploded">
+            {t('exploded')}
+          </button>
+          {/* Under the button on wider screens; phones get it above the toolbar (below). */}
+          {exploded && <SeeThroughControl className="absolute top-full right-1/2 mt-2 hidden translate-x-1/2 sm:block" testId="see-through" />}
+        </div>
         <button type="button" className={showDimensions ? toolOn : toolOff} aria-pressed={showDimensions} onClick={() => toggle('showDimensions')} data-testid="toggle-dimensions">
           {t('dimensions')}
         </button>
@@ -166,6 +217,7 @@ export function Viewer() {
           {t('reset')}
         </button>
       </div>
+      {exploded && <SeeThroughControl className="absolute right-2 bottom-12 sm:hidden" testId="see-through-mobile" />}
       {sceneOpen && (
         <div
           id="viewer-scene-panel"

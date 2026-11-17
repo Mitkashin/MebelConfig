@@ -20,6 +20,11 @@ interface SceneState {
   wall: WallColor;
   /** Turntable: the free scene slowly turns the piece by itself. */
   spin: boolean;
+  /** Exploded view: boards shown see-through, and how solid they stay (0.1–0.9). */
+  seeThrough: boolean;
+  opacity: number;
+  setSeeThrough: (seeThrough: boolean) => void;
+  setOpacity: (opacity: number) => void;
   setBackdrop: (backdrop: Backdrop) => void;
   setWall: (wall: WallColor) => void;
   setSpin: (spin: boolean) => void;
@@ -39,6 +44,10 @@ export const useScene = create<SceneState>((set, get) => ({
   backdrop: 'studio',
   wall: 'white',
   spin: false,
+  seeThrough: false,
+  opacity: 0.4,
+  setSeeThrough: (seeThrough) => set({ seeThrough }),
+  setOpacity: (opacity) => set({ opacity: Math.min(0.9, Math.max(0.1, opacity)) }),
   setBackdrop: (backdrop) => {
     set({ backdrop });
     store({ ...get(), backdrop });

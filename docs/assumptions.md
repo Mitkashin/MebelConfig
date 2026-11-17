@@ -73,7 +73,7 @@ The standing row models (standing sideboard, chest of drawers, nightstand)
 can stand on a plinth instead of legs. The plinth is a frame of 18 mm board
 in the body decor, 60, 80, 100, 120 or 150 mm tall (the total height
 includes it, as with legs), set back 0 (flush with the fronts), 30 or 50 mm
-from the front and both ends:
+on all four sides (front, back and both ends):
 
 - front panel across the width, banded all round; back panel across the
   width; side panels between them; a support under each joint between
@@ -152,7 +152,7 @@ their own limits and options, chosen by us:
 | Wall-hung sideboard | doors, open, drawers | wall | 600–2780 / 300–2000 / 150–600 | the verified reference model |
 | Open sideboard | open | wall | 600–2780 / 300–1400 / 150–450 | no door, drawer or handle controls |
 | Standing sideboard | doors, open, drawers | legs 100/150/200 or plinth | 600–2780 / 450–1400 / 150–600 | total height includes the legs |
-| Chest of drawers | drawers, doors, open | legs, plinth or wall | 600–2780 / 400–1400 / 300–600 | |
+| Chest of drawers | drawers, doors, open | legs, plinth or wall | 600–2780 / 400–1400 / 300–900 | drawers stay at most 550 mm deep (longest slide) |
 | Wardrobe | doors, open | floor | 400–2780 / 1600–2400 / 350–650 | columns 400–1200 wide; hanging rails |
 | Nightstand | drawers, open, doors | legs, plinth or wall | 300–900 / 300–800 / 300–500 | 1–2 elements |
 | Wall cabinet | doors, open | wall | 300–1800 / 300–1200 / 150–400 | 1–4 elements |

@@ -184,28 +184,28 @@ export function buildParts(config: Config): Part[] {
 
 /**
  * Plinth base: a frame of board in the body decor under the carcasses, as
- * tall as the base height, set back from the front and both ends. A front
- * panel (banded all round) and a back panel run the full width; side panels
- * and supports under the carcass joints (and under wide carcasses) sit
- * between them and carry the levellers.
+ * tall as the base height, set back on all four sides (front, back and both
+ * ends). A front panel (banded all round) and a back panel run the width;
+ * side panels and supports under the carcass joints (and under wide
+ * carcasses) sit between them and carry the levellers.
  */
 function addPlinth(add: (s: Spec) => void, config: Config, t: number, carcasses: [number, number][]) {
   const h = config.legHeight;
   const s = config.plinthSetback;
   const W = config.width;
   const front = config.depth - s - t;
-  const inner = front - t;
+  const inner = front - s - t;
   add({ id: 'plinth.front', role: 'plinth', element: null, position: [s, 0, front], size: [W - 2 * s, h, t], lengthAxis: 0, edges: { l1: true, l2: true, w1: true, w2: true } });
-  add({ id: 'plinth.back', role: 'plinth', element: null, position: [s, 0, 0], size: [W - 2 * s, h, t], lengthAxis: 0 });
-  add({ id: 'plinth.left', role: 'plinth', element: null, position: [s, 0, t], size: [t, h, inner], lengthAxis: 2 });
-  add({ id: 'plinth.right', role: 'plinth', element: null, position: [W - s - t, 0, t], size: [t, h, inner], lengthAxis: 2 });
+  add({ id: 'plinth.back', role: 'plinth', element: null, position: [s, 0, s], size: [W - 2 * s, h, t], lengthAxis: 0 });
+  add({ id: 'plinth.left', role: 'plinth', element: null, position: [s, 0, s + t], size: [t, h, inner], lengthAxis: 2 });
+  add({ id: 'plinth.right', role: 'plinth', element: null, position: [W - s - t, 0, s + t], size: [t, h, inner], lengthAxis: 2 });
   // Supports under each joint between carcasses, and in the middle of any carcass wider than a metre.
   const xs: number[] = [];
   carcasses.forEach(([x, w], i) => {
     if (i > 0) xs.push(x - Math.floor(t / 2));
     if (w > 1000) xs.push(x + Math.floor((w - t) / 2));
   });
-  xs.forEach((x, k) => add({ id: `plinth.support${k}`, role: 'plinth', element: null, position: [x, 0, t], size: [t, h, inner], lengthAxis: 2 }));
+  xs.forEach((x, k) => add({ id: `plinth.support${k}`, role: 'plinth', element: null, position: [x, 0, s + t], size: [t, h, inner], lengthAxis: 2 }));
 }
 
 function addDrawers(

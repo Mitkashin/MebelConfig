@@ -389,6 +389,8 @@
     "openFronts": "Open fronts",
     "closeFronts": "Close fronts",
     "exploded": "Exploded view",
+    "seeThrough": "See-through",
+    "transparency": "Transparency",
     "dimensions": "Dimensions",
     "reset": "Reset view",
     "selected": "{name} · {length} × {width}",

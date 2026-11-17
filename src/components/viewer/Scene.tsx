@@ -41,6 +41,8 @@ export interface SceneProps {
   captureRef?: RefObject<(() => Promise<string>) | null>;
   /** Turntable in the free scene. */
   spin: boolean;
+  /** Opacity of the boards when they are shown see-through (exploded view), or null for solid. */
+  seeThrough: number | null;
 }
 
 /** Glass door look, passed down rather than through every part. */
@@ -49,6 +51,13 @@ const GlassContext = createContext<{ frame: string; tint: string }>({ frame: '#1
 const loader = new THREE.TextureLoader();
 const textures = new Map<string, THREE.Texture>();
 const materials = new Map<string, THREE.MeshStandardMaterial>();
+/** See-through board materials; they all share one opacity, set from the viewer's slider. */
+const seeThroughMaterials = new Set<THREE.Material>();
+let seeThroughOpacity = 0.4;
+function setSeeThroughOpacity(opacity: number) {
+  seeThroughOpacity = opacity;
+  for (const m of seeThroughMaterials) m.opacity = opacity;
+}
 
 /** One shared texture per decor image, loaded the first time a part uses it. */
 function decorTexture(url: string, onLoad: () => void): THREE.Texture {
@@ -74,8 +83,8 @@ const RELIEF_SCALE = 1.2;
  * structure code) sets how matt the board is, a soft sheen for super-matt
  * surfaces, and grain relief taken from the photo itself.
  */
-function partMaterial(color: string, image: string | null, finish: DecorFinish, highlight: string | null, simple: boolean, onLoad: () => void): THREE.MeshStandardMaterial {
-  const key = `${color}|${image}|${finish.roughness}|${finish.relief}|${finish.sheen}|${highlight}|${simple}`;
+function partMaterial(color: string, image: string | null, finish: DecorFinish, highlight: string | null, simple: boolean, onLoad: () => void, seeThrough = false): THREE.MeshStandardMaterial {
+  const key = `${color}|${image}|${finish.roughness}|${finish.relief}|${finish.sheen}|${highlight}|${simple}|${seeThrough}`;
   const cached = materials.get(key);
   if (cached) return cached;
   // Without a GPU every extra shader feature costs whole seconds, so the simple tier keeps one plain material type.
@@ -110,6 +119,13 @@ function partMaterial(color: string, image: string | null, finish: DecorFinish, 
   if (highlight) {
     material.emissive = new THREE.Color(highlight);
     material.emissiveIntensity = 0.55;
+  }
+  if (seeThrough) {
+    // No depth writes, so boards behind a see-through board still show.
+    material.transparent = true;
+    material.opacity = seeThroughOpacity;
+    material.depthWrite = false;
+    seeThroughMaterials.add(material);
   }
   materials.set(key, material);
   return material;
@@ -188,6 +204,12 @@ function explodeOffset(part: Part, count: number, cellsInColumn: number): Vec3 {
       return [spread, 0, 180];
     case 'back':
       return [spread, 0, -220];
+    case 'plinth': {
+      // The base drops below the carcass and opens out: front forward, back backward, ends outward.
+      const side = (part.id.split('.')[1] ?? '').replace(/\d+$/, '');
+      const [dx, dz] = side === 'front' ? [0, 160] : side === 'back' ? [0, -160] : side === 'left' ? [-160, 0] : side === 'right' ? [160, 0] : [0, 0];
+      return [dx, -280, dz];
+    }
     default:
       return [spread, 0, 340];
   }
@@ -301,7 +323,7 @@ function glassMaterial(tint: string): THREE.MeshPhysicalMaterial {
 }
 
 /** Glass door: a tinted pane in a 20 mm aluminium frame. */
-function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
+function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: string | null; seeThrough?: boolean; onSelect: (id: string) => void }) {
   const tint = useContext(GlassContext);
   const [x, y, z] = part.position;
   const [sx, sy, sz] = part.size;
@@ -329,16 +351,16 @@ function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: strin
   );
 }
 
-function PartMesh(props: { part: Part; highlight: string | null; simple: boolean; onSelect: (id: string) => void }) {
+function PartMesh(props: { part: Part; highlight: string | null; simple: boolean; seeThrough: boolean; onSelect: (id: string) => void }) {
   return props.part.material === 'glass' ? <GlassDoor {...props} /> : <BoardMesh {...props} />;
 }
 
-function BoardMesh({ part, highlight, simple, onSelect }: { part: Part; highlight: string | null; simple: boolean; onSelect: (id: string) => void }) {
+function BoardMesh({ part, highlight, simple, seeThrough, onSelect }: { part: Part; highlight: string | null; simple: boolean; seeThrough: boolean; onSelect: (id: string) => void }) {
   const invalidate = useThree((st) => st.invalidate);
   const decor = part.decor ? getDecor(part.decor) : undefined;
   const color = part.material === 'hdf' ? HDF_COLOR : (decor?.color ?? '#cccccc');
   const finish = part.material === 'hdf' ? HDF_FINISH : decorFinish(decor);
-  const material = partMaterial(color, part.material === 'hdf' ? null : (decor?.image ?? null), finish, highlight, simple, invalidate);
+  const material = partMaterial(color, part.material === 'hdf' ? null : (decor?.image ?? null), finish, highlight, simple, invalidate, seeThrough);
   const tile = decor?.tile ?? 600;
   const geometry = useMemo(() => partGeometry(part, tile), [part, tile]);
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -351,7 +373,7 @@ function BoardMesh({ part, highlight, simple, onSelect }: { part: Part; highligh
       position={[x + sx / 2, y + sy / 2, z + sz / 2]}
       geometry={geometry}
       material={material}
-      castShadow
+      castShadow={!seeThrough}
       receiveShadow
       onClick={(e) => {
         e.stopPropagation();
@@ -367,7 +389,8 @@ function BoardMesh({ part, highlight, simple, onSelect }: { part: Part; highligh
         document.body.style.cursor = '';
       }}
     >
-      <Edges threshold={15} color={highlight ?? (hover ? HOVER_COLOR : '#1b2422')} transparent opacity={highlight ? 0.9 : hover ? 0.85 : 0.07} />
+      {/* See-through boards keep stronger outlines, so their shape still reads. */}
+      <Edges threshold={15} color={highlight ?? (hover ? HOVER_COLOR : '#1b2422')} transparent opacity={highlight ? 0.9 : hover ? 0.85 : seeThrough ? 0.45 : 0.07} />
     </mesh>
   );
 }
@@ -703,6 +726,17 @@ function Capture({ captureRef, setBoost }: { captureRef: RefObject<(() => Promis
   return null;
 }
 
+/** Applies the slider's opacity to every see-through board and redraws. */
+function SeeThroughOpacity({ value }: { value: number | null }) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (value === null) return;
+    setSeeThroughOpacity(value);
+    invalidate();
+  }, [value, invalidate]);
+  return null;
+}
+
 class Boundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
@@ -719,10 +753,14 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
   // With no wall to hang on, a wall piece is shown standing on the ground.
   const mountHeight = free ? 0 : props.mountHeight;
   const controls = useRef<Controls | null>(null);
-  const movers = useMemo(
-    () => buildMovers({ parts, handles, config, doorsOpen: props.doorsOpen, toggled: props.toggled, exploded: props.exploded }),
-    [parts, handles, config, props.doorsOpen, props.toggled, props.exploded],
-  );
+  const movers = useMemo(() => {
+    const list = buildMovers({ parts, handles, config, doorsOpen: props.doorsOpen, toggled: props.toggled, exploded: props.exploded });
+    if (!props.exploded) return list;
+    // Lift the exploded piece so the parts that move down (bottoms, plinth) stay above the floor.
+    const lowest = Math.min(...list.flatMap((m) => m.parts.map((x) => x.position[1] + m.offset[1])));
+    const lift = Math.max(0, -(lowest + mountHeight));
+    return lift > 0 ? list.map((m) => ({ ...m, offset: [m.offset[0], m.offset[1] + lift, m.offset[2]] as Vec3 })) : list;
+  }, [parts, handles, config, props.doorsOpen, props.toggled, props.exploded, mountHeight]);
   const handleColor = HANDLE_FINISHES[config.handleFinish];
   // Lighter rendering on phones and where WebGL runs without a GPU (remote desktops, VMs, CI).
   // `?quality=high|medium|low` in the address overrides the guess.
@@ -772,7 +810,7 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
               <Mover key={spec.id} spec={spec}>
                 {spec.parts.map((part) => {
                   const no = rowNoByPart[part.id];
-                  return <PartMesh key={part.id} part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} simple={tier === 'low'} onSelect={onSelect} />;
+                  return <PartMesh key={part.id} part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} simple={tier === 'low'} seeThrough={props.seeThrough !== null} onSelect={onSelect} />;
                 })}
                 {spec.handles.map((h) => (
                   <HandleMesh key={h.id} handle={h} color={handleColor} />
@@ -789,6 +827,7 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
           <OrbitControls ref={controls as never} makeDefault enablePan={false} enableDamping dampingFactor={0.12} rotateSpeed={0.8} autoRotate={free && props.spin} autoRotateSpeed={1.2} />
           <CameraRig config={config} mountHeight={mountHeight} resetKey={props.resetKey} exploded={props.exploded} doorsOpen={props.doorsOpen} free={free} spin={props.spin} controls={controls} nudgeRef={nudge} />
           <Ready onReady={props.onReady} />
+          <SeeThroughOpacity value={props.seeThrough} />
           {props.captureRef && <Capture captureRef={props.captureRef} setBoost={setBoost} />}
         </Canvas>
       </Boundary>

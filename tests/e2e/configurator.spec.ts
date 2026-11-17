@@ -246,6 +246,32 @@ test('chest of drawers: plinth instead of legs, and drawer fronts with the grain
   await expect(page.locator('[data-line="bandingService"]')).toBeVisible();
 });
 
+test('chest of drawers: 90 cm deep; exploded view with see-through boards', async ({ page }) => {
+  await page.goto('/en');
+  await page.getByTestId('model-drawer-sideboard-1').click();
+  await ready(page);
+  const depth = page.getByRole('textbox', { name: 'Depth', exact: true });
+  await depth.fill('90');
+  await depth.press('Enter');
+  await expect(page.getByTestId('summary')).toContainText('90.0');
+  await expect(page.getByTestId('step-1').getByRole('alert')).toHaveCount(0);
+
+  // The see-through control only shows with the exploded view, under its button.
+  await expect(page.getByTestId('see-through')).toHaveCount(0);
+  await page.getByTestId('toggle-exploded').click();
+  const panel = page.getByTestId('see-through');
+  await expect(panel).toBeVisible();
+  const button = await page.getByTestId('toggle-exploded').boundingBox();
+  const box = await panel.boundingBox();
+  expect(box!.y).toBeGreaterThan(button!.y + button!.height);
+  await panel.getByRole('switch', { name: 'See-through' }).click();
+  const slider = panel.getByRole('slider', { name: 'Transparency' });
+  await slider.fill('75');
+  await expect(panel).toContainText('75%');
+  await page.getByTestId('toggle-exploded').click();
+  await expect(page.getByTestId('see-through')).toHaveCount(0);
+});
+
 test('wardrobe: compartments with rails, glass doors, remove, split, turn and plinth', async ({ page }) => {
   await page.goto('/en/configurator/wardrobe-1');
   await ready(page);
