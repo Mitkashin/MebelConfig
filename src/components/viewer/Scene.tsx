@@ -2,15 +2,19 @@
 
 import { Edges, Html, Line, OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Component, createContext, useContext, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { Component, createContext, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import * as THREE from 'three';
-import { getDecor, HANDLE_FINISHES } from '@/engine/catalog';
+import { decorFinish, getDecor, HANDLE_FINISHES, type DecorFinish } from '@/engine/catalog';
 import type { Config, Fitting, HandlePlacement, Part, Vec3 } from '@/engine/types';
 import { rowColor } from '@/lib/format';
+import type { Backdrop, WallColor } from '@/store/scene';
+import { Stage, type Quality } from './Stage';
 
 const MM = 0.001;
 const HDF_COLOR = '#b9a88e';
 const DEG = Math.PI / 180;
+const HOVER_COLOR = '#0f6b5c';
+const HDF_FINISH: DecorFinish = { roughness: 0.85, relief: 0, sheen: 0 };
 
 export interface SceneProps {
   config: Config;
@@ -31,6 +35,12 @@ export interface SceneProps {
   labels: { width: string; height: string; depth: string; elements: string[] };
   onSelect: (partId: string | null) => void;
   onReady: () => void;
+  backdrop: Backdrop;
+  wall: WallColor;
+  /** Filled by the scene with a function that renders a sharp still and returns it as a PNG data URL. */
+  captureRef?: RefObject<(() => Promise<string>) | null>;
+  /** Turntable in the free scene. */
+  spin: boolean;
 }
 
 /** Glass door look, passed down rather than through every part. */
@@ -55,23 +65,47 @@ function decorTexture(url: string, onLoad: () => void): THREE.Texture {
   return texture;
 }
 
-/** One shared material per decor and highlight. The colour is the swatch average, shown until the photo arrives. */
-function partMaterial(color: string, image: string | null, highlight: string | null, onLoad: () => void): THREE.MeshStandardMaterial {
-  const key = `${color}|${image}|${highlight}`;
+/** Relief from the swatch photo is kept faint: it should read as grain and pores, not as carving. */
+const RELIEF_SCALE = 1.2;
+
+/**
+ * One shared material per decor, finish and highlight. The colour is the swatch
+ * average, shown until the photo arrives. The finish (from the supplier's
+ * structure code) sets how matt the board is, a soft sheen for super-matt
+ * surfaces, and grain relief taken from the photo itself.
+ */
+function partMaterial(color: string, image: string | null, finish: DecorFinish, highlight: string | null, simple: boolean, onLoad: () => void): THREE.MeshStandardMaterial {
+  const key = `${color}|${image}|${finish.roughness}|${finish.relief}|${finish.sheen}|${highlight}|${simple}`;
   const cached = materials.get(key);
   if (cached) return cached;
-  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0 });
+  // Without a GPU every extra shader feature costs whole seconds, so the simple tier keeps one plain material type.
+  const material = simple
+    ? new THREE.MeshStandardMaterial({ color, roughness: finish.roughness, metalness: 0 })
+    : new THREE.MeshPhysicalMaterial({
+        color,
+        roughness: finish.roughness,
+        metalness: 0,
+        // Melamine is a thin resin layer: a faint, broad reflection on top of the print.
+        specularIntensity: 0.55,
+        sheen: finish.sheen,
+        sheenRoughness: 0.8,
+        sheenColor: new THREE.Color('#ffffff'),
+      });
+  const applyTexture = (texture: THREE.Texture) => {
+    material.color.set('#ffffff');
+    material.map = texture;
+    if (finish.relief > 0 && !simple) {
+      material.bumpMap = texture;
+      material.bumpScale = finish.relief * RELIEF_SCALE;
+    }
+  };
   if (image) {
     const texture = decorTexture(image, () => {
-      material.color.set('#ffffff');
-      material.map = texture;
+      applyTexture(texture);
       material.needsUpdate = true;
       onLoad();
     });
-    if (texture.image) {
-      material.color.set('#ffffff');
-      material.map = texture;
-    }
+    if (texture.image) applyTexture(texture);
   }
   if (highlight) {
     material.emissive = new THREE.Color(highlight);
@@ -295,18 +329,21 @@ function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: strin
   );
 }
 
-function PartMesh(props: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
+function PartMesh(props: { part: Part; highlight: string | null; simple: boolean; onSelect: (id: string) => void }) {
   return props.part.material === 'glass' ? <GlassDoor {...props} /> : <BoardMesh {...props} />;
 }
 
-function BoardMesh({ part, highlight, onSelect }: { part: Part; highlight: string | null; onSelect: (id: string) => void }) {
+function BoardMesh({ part, highlight, simple, onSelect }: { part: Part; highlight: string | null; simple: boolean; onSelect: (id: string) => void }) {
   const invalidate = useThree((st) => st.invalidate);
   const decor = part.decor ? getDecor(part.decor) : undefined;
   const color = part.material === 'hdf' ? HDF_COLOR : (decor?.color ?? '#cccccc');
-  const material = partMaterial(color, part.material === 'hdf' ? null : (decor?.image ?? null), highlight, invalidate);
+  const finish = part.material === 'hdf' ? HDF_FINISH : decorFinish(decor);
+  const material = partMaterial(color, part.material === 'hdf' ? null : (decor?.image ?? null), finish, highlight, simple, invalidate);
   const tile = decor?.tile ?? 600;
   const geometry = useMemo(() => partGeometry(part, tile), [part, tile]);
   useEffect(() => () => geometry.dispose(), [geometry]);
+  // Hover outline: shows which board a click will pick. Kept per part so only that part re-renders.
+  const [hover, setHover] = useState(false);
   const [x, y, z] = part.position;
   const [sx, sy, sz] = part.size;
   return (
@@ -322,13 +359,15 @@ function BoardMesh({ part, highlight, onSelect }: { part: Part; highlight: strin
       }}
       onPointerOver={(e) => {
         e.stopPropagation();
+        setHover(true);
         document.body.style.cursor = 'pointer';
       }}
       onPointerOut={() => {
+        setHover(false);
         document.body.style.cursor = '';
       }}
     >
-      <Edges threshold={15} color={highlight ?? '#1b2422'} transparent opacity={highlight ? 0.9 : 0.16} />
+      <Edges threshold={15} color={highlight ?? (hover ? HOVER_COLOR : '#1b2422')} transparent opacity={highlight ? 0.9 : hover ? 0.85 : 0.07} />
     </mesh>
   );
 }
@@ -418,35 +457,79 @@ type Controls = {
   setPolarAngle: (angle: number) => void;
   minDistance: number;
   maxDistance: number;
+  minPolarAngle: number;
+  maxPolarAngle: number;
+  minAzimuthAngle: number;
+  maxAzimuthAngle: number;
+  autoRotate: boolean;
+  autoRotateSpeed: number;
+  addEventListener: (type: 'start' | 'end' | 'change', listener: () => void) => void;
+  removeEventListener: (type: 'start' | 'end' | 'change', listener: () => void) => void;
 };
 
 const FOV = 32;
+const DEFAULT_AZIMUTH = 28 * DEG;
+const DEFAULT_POLAR = 76 * DEG;
 
-/** Point the camera at the piece from `direction` (or keep the current direction) at a distance that fits it. */
-function frameCamera(camera: THREE.Camera, c: Controls | null, target: THREE.Vector3, fit: number, reset: boolean) {
-  let direction: THREE.Vector3;
-  if (reset || !c) {
-    const azimuth = 28 * DEG;
-    const polar = 76 * DEG;
-    direction = new THREE.Vector3(Math.sin(polar) * Math.sin(azimuth), Math.cos(polar), Math.sin(polar) * Math.cos(azimuth));
-  } else {
-    direction = camera.position.clone().sub(c.target).normalize();
-  }
-  camera.position.copy(target).addScaledVector(direction, fit);
-  camera.lookAt(target);
-  if (c) {
-    c.target.copy(target);
-    c.minDistance = fit * 0.45;
-    c.maxDistance = fit * 2.2;
-    c.update();
-  }
+/** Where the camera may go. Against a wall it stays in front; in the free scene it goes all the way round and a little below. */
+function orbitLimits(free: boolean, fit: number) {
+  return free
+    ? { minPolar: 5 * DEG, maxPolar: 112 * DEG, minAzimuth: -Infinity, maxAzimuth: Infinity, minDistance: fit * 0.45, maxDistance: fit * 2.6 }
+    : { minPolar: 18 * DEG, maxPolar: 100 * DEG, minAzimuth: -80 * DEG, maxAzimuth: 80 * DEG, minDistance: fit * 0.45, maxDistance: fit * 2.2 };
+}
+type Limits = ReturnType<typeof orbitLimits>;
+
+function applyLimits(c: Controls, l: Limits | null) {
+  c.minPolarAngle = l ? l.minPolar : 0;
+  c.maxPolarAngle = l ? l.maxPolar : Math.PI;
+  c.minAzimuthAngle = l ? l.minAzimuth : -Infinity;
+  c.maxAzimuthAngle = l ? l.maxAzimuth : Infinity;
+  c.minDistance = l ? l.minDistance : 0;
+  c.maxDistance = l ? l.maxDistance : Infinity;
 }
 
-/** Frames the piece: keeps the viewing direction when the size changes, restores the default view on reset. */
-function CameraRig({ config, mountHeight, resetKey, exploded, doorsOpen, controls }: Pick<SceneProps, 'config' | 'mountHeight' | 'resetKey' | 'exploded' | 'doorsOpen'> & { controls: React.RefObject<Controls | null> }) {
+interface View {
+  target: THREE.Vector3;
+  radius: number;
+  polar: number;
+  azimuth: number;
+}
+
+/** Camera position for a view: azimuth 0 looks at the front, positive turns to the right. */
+function placeCamera(camera: THREE.Camera, c: Controls | null, v: View) {
+  const sp = Math.sin(v.polar);
+  camera.position.set(v.target.x + v.radius * sp * Math.sin(v.azimuth), v.target.y + v.radius * Math.cos(v.polar), v.target.z + v.radius * sp * Math.cos(v.azimuth));
+  camera.lookAt(v.target);
+  if (c) c.target.copy(v.target);
+}
+
+function currentView(camera: THREE.Camera, target: THREE.Vector3): View {
+  const offset = camera.position.clone().sub(target);
+  const radius = Math.max(1e-3, offset.length());
+  return { target: target.clone(), radius, polar: Math.acos(THREE.MathUtils.clamp(offset.y / radius, -1, 1)), azimuth: Math.atan2(offset.x, offset.z) };
+}
+
+/** Shortest signed turn from angle a to angle b. */
+function turn(a: number, b: number) {
+  return Math.atan2(Math.sin(b - a), Math.cos(b - a));
+}
+
+const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Frames the piece. Keeps the viewing direction when the size changes and
+ * returns to the default view on reset or when the scene changes. Moves glide
+ * (in angles, so the camera swings round the piece rather than through it);
+ * the first framing, reduced-motion users and a grab by the user are instant.
+ */
+function CameraRig({ config, mountHeight, resetKey, exploded, doorsOpen, free, spin, controls, nudgeRef }: Pick<SceneProps, 'config' | 'mountHeight' | 'resetKey' | 'exploded' | 'doorsOpen'> & { free: boolean; spin: boolean; controls: React.RefObject<Controls | null>; nudgeRef: RefObject<((azimuth: number, polar: number) => void) | null> }) {
   const get = useThree((s) => s.get);
   const size = useThree((s) => s.size);
   const lastReset = useRef(-1);
+  const lastFree = useRef(free);
+  const first = useRef(true);
+  const goal = useRef<{ view: View; limits: Limits } | null>(null);
+  const limits = useRef<Limits | null>(null);
   const { width, height, depth } = config;
 
   useEffect(() => {
@@ -454,12 +537,101 @@ function CameraRig({ config, mountHeight, resetKey, exploded, doorsOpen, control
     const radius = 0.5 * Math.hypot(width, height, depth) * MM;
     const aspect = size.width / Math.max(1, size.height);
     const fit = (radius / Math.sin((FOV * DEG) / 2)) * (aspect < 1 ? 1.15 / aspect : 1.15) * (exploded ? 1.5 : doorsOpen ? 1.22 : 1);
-    const reset = lastReset.current !== resetKey;
+    const reset = lastReset.current !== resetKey || lastFree.current !== free;
     lastReset.current = resetKey;
+    lastFree.current = free;
     const state = get();
-    frameCamera(state.camera, controls.current, target, fit, reset);
+    const c = controls.current;
+    const from = currentView(state.camera, c?.target ?? target);
+    const view: View = { target, radius: fit, polar: reset ? DEFAULT_POLAR : from.polar, azimuth: reset ? DEFAULT_AZIMUTH : from.azimuth };
+    const nextLimits = orbitLimits(free, fit);
+    limits.current = nextLimits;
+    if (first.current || !c || reducedMotion()) {
+      first.current = false;
+      goal.current = null;
+      placeCamera(state.camera, c, view);
+      if (c) {
+        applyLimits(c, nextLimits);
+        c.update();
+      }
+    } else {
+      // Free the camera while it glides; the limits come back when it arrives.
+      goal.current = { view, limits: nextLimits };
+      applyLimits(c, null);
+    }
     state.invalidate();
-  }, [width, height, depth, mountHeight, resetKey, exploded, doorsOpen, size.width, size.height, get, controls]);
+  }, [width, height, depth, mountHeight, resetKey, exploded, doorsOpen, free, size.width, size.height, get, controls]);
+
+  // Arrow keys: glide a step from where the camera is heading, within the scene's limits.
+  useEffect(() => {
+    nudgeRef.current = (dAzimuth, dPolar) => {
+      const state = get();
+      const c = controls.current;
+      const l = limits.current;
+      if (!c || !l) return;
+      const base = goal.current?.view ?? currentView(state.camera, c.target);
+      const azimuth = THREE.MathUtils.clamp(base.azimuth + dAzimuth, l.minAzimuth, l.maxAzimuth);
+      const polar = THREE.MathUtils.clamp(base.polar + dPolar, l.minPolar, l.maxPolar);
+      const view: View = { ...base, target: base.target.clone(), azimuth, polar };
+      if (reducedMotion()) {
+        placeCamera(state.camera, c, view);
+        c.update();
+      } else {
+        goal.current = { view, limits: l };
+        applyLimits(c, null);
+      }
+      state.invalidate();
+    };
+    return () => {
+      nudgeRef.current = null;
+    };
+  }, [nudgeRef, controls, get]);
+
+  // A grab by the user ends a glide where it is.
+  useEffect(() => {
+    const c = controls.current;
+    if (!c) return;
+    const onStart = () => {
+      if (!goal.current) return;
+      goal.current = null;
+      applyLimits(c, limits.current);
+    };
+    c.addEventListener('start', onStart);
+    return () => c.removeEventListener('start', onStart);
+  }, [controls]);
+
+  // Turntable (switched on the controls themselves): it needs a frame every frame while on, starting now.
+  useEffect(() => {
+    if (free && spin) get().invalidate();
+  }, [free, spin, get]);
+
+  useFrame((state, dt) => {
+    const c = controls.current;
+    if (c?.autoRotate) state.invalidate();
+    const g = goal.current;
+    if (!g || !c) return;
+    const step = Math.min(dt, 0.05);
+    const from = currentView(state.camera, c.target);
+    const k = 1 - Math.exp(-7 * step);
+    const view: View = {
+      target: from.target.lerp(g.view.target, k),
+      radius: THREE.MathUtils.lerp(from.radius, g.view.radius, k),
+      polar: THREE.MathUtils.lerp(from.polar, g.view.polar, k),
+      azimuth: from.azimuth + turn(from.azimuth, g.view.azimuth) * k,
+    };
+    const done =
+      view.target.distanceTo(g.view.target) < 1e-3 &&
+      Math.abs(view.radius - g.view.radius) < 1e-3 &&
+      Math.abs(view.polar - g.view.polar) < 1e-3 &&
+      Math.abs(turn(view.azimuth, g.view.azimuth)) < 1e-3;
+    placeCamera(state.camera, c, done ? g.view : view);
+    if (done) {
+      goal.current = null;
+      applyLimits(c, g.limits);
+      c.update();
+    }
+    state.invalidate();
+  });
   return null;
 }
 
@@ -474,6 +646,63 @@ function Ready({ onReady }: { onReady: () => void }) {
   return null;
 }
 
+let softwareCache: boolean | null = null;
+
+/**
+ * True when WebGL is emulated on the CPU (SwiftShader, llvmpipe, Microsoft
+ * Basic Render Driver …). Checked once with a throwaway context before the
+ * scene mounts, so the first frame is already drawn at the right quality.
+ */
+function softwareRendering(): boolean {
+  if (softwareCache !== null) return softwareCache;
+  softwareCache = false;
+  try {
+    const context = document.createElement('canvas').getContext('webgl2') ?? document.createElement('canvas').getContext('webgl');
+    if (context) {
+      const info = context.getExtension('WEBGL_debug_renderer_info');
+      const name = String(context.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : context.RENDERER));
+      softwareCache = /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
+      context.getExtension('WEBGL_lose_context')?.loseContext();
+    }
+  } catch {
+    // keep the default
+  }
+  return softwareCache;
+}
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+/**
+ * Registers the still-image renderer: raise the pixel ratio (through the
+ * canvas's own `dpr` prop, which would otherwise reset it on the next React
+ * render), wait until the renderer has resized and drawn, read the pixels back,
+ * then return to the normal ratio.
+ */
+function Capture({ captureRef, setBoost }: { captureRef: RefObject<(() => Promise<string>) | null>; setBoost: (dpr: number | null) => void }) {
+  const get = useThree((s) => s.get);
+  useEffect(() => {
+    captureRef.current = async () => {
+      const target = Math.min(3, Math.max(2, get().viewport.dpr * 1.5));
+      setBoost(target);
+      try {
+        for (let i = 0; i < 60 && get().gl.getPixelRatio() !== target; i++) await nextFrame();
+        // Two more drawn frames so shadows and the effect buffers catch up with the new size.
+        for (let i = 0; i < 2; i++) {
+          get().invalidate();
+          await nextFrame();
+        }
+        return get().gl.domElement.toDataURL('image/png');
+      } finally {
+        setBoost(null);
+      }
+    };
+    return () => {
+      captureRef.current = null;
+    };
+  }, [captureRef, get, setBoost]);
+  return null;
+}
+
 class Boundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
@@ -485,71 +714,65 @@ class Boundary extends Component<{ fallback: ReactNode; children: ReactNode }, {
 }
 
 export default function Scene(props: SceneProps & { fallback: ReactNode }) {
-  const { config, parts, handles, mountHeight, selected, rowNoByPart, onSelect } = props;
+  const { config, parts, handles, selected, rowNoByPart, onSelect } = props;
+  const free = props.backdrop === 'free';
+  // With no wall to hang on, a wall piece is shown standing on the ground.
+  const mountHeight = free ? 0 : props.mountHeight;
   const controls = useRef<Controls | null>(null);
   const movers = useMemo(
     () => buildMovers({ parts, handles, config, doorsOpen: props.doorsOpen, toggled: props.toggled, exploded: props.exploded }),
     [parts, handles, config, props.doorsOpen, props.toggled, props.exploded],
   );
   const handleColor = HANDLE_FINISHES[config.handleFinish];
-  const lowPower = typeof window !== 'undefined' && window.innerWidth < 768;
+  // Lighter rendering on phones and where WebGL runs without a GPU (remote desktops, VMs, CI).
+  // `?quality=high|medium|low` in the address overrides the guess.
+  const software = useMemo(() => softwareRendering(), []);
+  const quality = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('quality') : null;
+  const narrow = typeof window !== 'undefined' && window.innerWidth < 768;
+  const tier: Quality = quality === 'high' || quality === 'medium' || quality === 'low' ? quality : software ? 'low' : narrow ? 'medium' : 'high';
+  const lowPower = tier !== 'high';
+  /** Temporary pixel ratio while a still image is being rendered. */
+  const [boost, setBoost] = useState<number | null>(null);
 
+  const nudge = useRef<((azimuth: number, polar: number) => void) | null>(null);
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const c = controls.current;
-    if (!c) return;
-    const turn = 12 * DEG;
-    if (e.key === 'ArrowLeft') c.setAzimuthalAngle(c.getAzimuthalAngle() - turn);
-    else if (e.key === 'ArrowRight') c.setAzimuthalAngle(c.getAzimuthalAngle() + turn);
-    else if (e.key === 'ArrowUp') c.setPolarAngle(c.getPolarAngle() - turn / 2);
-    else if (e.key === 'ArrowDown') c.setPolarAngle(c.getPolarAngle() + turn / 2);
-    else return;
+    const step = 12 * DEG;
+    const move: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step / 2], ArrowDown: [0, step / 2] };
+    const m = move[e.key];
+    if (!m || !nudge.current) return;
     e.preventDefault();
-    c.update();
+    nudge.current(m[0], m[1]);
   };
 
   return (
     <div className="size-full touch-none outline-offset-[-2px]" role="img" aria-label={props.ariaLabel} tabIndex={0} onKeyDown={onKeyDown}>
       <Boundary fallback={props.fallback}>
         <Canvas
-          shadows
-          flat
+          shadows="percentage"
           frameloop="demand"
-          dpr={[1, lowPower ? 1.5 : 2]}
+          dpr={boost ?? (tier === 'low' ? 1 : [1, lowPower ? 1.5 : 2])}
           camera={{ fov: FOV, near: 0.05, far: 60, position: [1.6, 1.2, 3.6] }}
-          gl={{ antialias: true, preserveDrawingBuffer: true }}
+          gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.NeutralToneMapping, toneMappingExposure: 1 }}
           onPointerMissed={() => onSelect(null)}
         >
-          <color attach="background" args={['#f1efea']} />
-          <hemisphereLight args={['#ffffff', '#cfc8ba', 2.1]} />
-          <directionalLight
-            position={[2.4, 4.2, 3.4]}
-            intensity={1.5}
-            castShadow
-            shadow-intensity={0.45}
-            shadow-mapSize={lowPower ? [1024, 1024] : [2048, 2048]}
-            shadow-bias={-0.0004}
-            shadow-normalBias={0.02}
-            shadow-camera-left={-3}
-            shadow-camera-right={3}
-            shadow-camera-top={3.5}
-            shadow-camera-bottom={-1}
-            shadow-camera-far={14}
+          <color attach="background" args={['#ece8e1']} />
+          <Stage
+            backdrop={props.backdrop}
+            wall={props.wall}
+            width={config.width * MM}
+            height={config.height * MM}
+            depth={config.depth * MM}
+            mountHeight={mountHeight * MM}
+            exploded={props.exploded}
+            quality={tier}
           />
-          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[30, 30]} />
-            <meshStandardMaterial color="#d8ccb6" roughness={0.95} />
-          </mesh>
-          <mesh position={[0, 6, -0.004]} receiveShadow>
-            <planeGeometry args={[30, 12]} />
-            <meshStandardMaterial color="#f4f2ee" roughness={1} />
-          </mesh>
           <GlassContext.Provider value={{ frame: config.glassFrame === 'white' ? '#eeeeec' : '#1e1f21', tint: config.glassTint }}>
           <group position={[(-config.width / 2) * MM, mountHeight * MM, 0]} scale={MM}>
             {movers.map((spec) => (
               <Mover key={spec.id} spec={spec}>
                 {spec.parts.map((part) => {
                   const no = rowNoByPart[part.id];
-                  return <PartMesh key={part.id} part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} onSelect={onSelect} />;
+                  return <PartMesh key={part.id} part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} simple={tier === 'low'} onSelect={onSelect} />;
                 })}
                 {spec.handles.map((h) => (
                   <HandleMesh key={h.id} handle={h} color={handleColor} />
@@ -562,18 +785,11 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
             {props.showDimensions && <Dimensions config={config} labels={props.labels} />}
           </group>
           </GlassContext.Provider>
-          <OrbitControls
-            ref={controls as never}
-            makeDefault
-            enablePan={false}
-            enableDamping={false}
-            minPolarAngle={18 * DEG}
-            maxPolarAngle={100 * DEG}
-            minAzimuthAngle={-80 * DEG}
-            maxAzimuthAngle={80 * DEG}
-          />
-          <CameraRig config={config} mountHeight={mountHeight} resetKey={props.resetKey} exploded={props.exploded} doorsOpen={props.doorsOpen} controls={controls} />
+          {/* Orbit limits are set by CameraRig: they change with the scene and are lifted while the camera glides. */}
+          <OrbitControls ref={controls as never} makeDefault enablePan={false} enableDamping dampingFactor={0.12} rotateSpeed={0.8} autoRotate={free && props.spin} autoRotateSpeed={1.2} />
+          <CameraRig config={config} mountHeight={mountHeight} resetKey={props.resetKey} exploded={props.exploded} doorsOpen={props.doorsOpen} free={free} spin={props.spin} controls={controls} nudgeRef={nudge} />
           <Ready onReady={props.onReady} />
+          {props.captureRef && <Capture captureRef={props.captureRef} setBoost={setBoost} />}
         </Canvas>
       </Boundary>
     </div>

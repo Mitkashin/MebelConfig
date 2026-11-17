@@ -146,7 +146,11 @@ export function Configurator({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    const url = `${window.location.pathname}?c=${encodeConfig(config)}`;
+    // Only the design code changes; other parameters (e.g. the 3D view's `quality`) stay in the address.
+    const params = new URLSearchParams(window.location.search);
+    params.delete('c');
+    const rest = params.toString();
+    const url = `${window.location.pathname}?${rest ? `${rest}&` : ''}c=${encodeConfig(config)}`;
     window.history.replaceState(window.history.state, '', url);
   }, [config, hydrated]);
 

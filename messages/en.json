@@ -378,7 +378,23 @@
     "reset": "Reset view",
     "selected": "{name} · {length} × {width}",
     "hint": "Drag to rotate. Click a part to find it in the cut list.",
-    "selectedQty": "{shown} of {qty} identical parts"
+    "selectedQty": "{shown} of {qty} identical parts",
+    "scene": "Scene",
+    "studio": "Studio",
+    "room": "Room",
+    "wall": "Wall colour",
+    "saveImage": "Save image",
+    "saving": "Saving…",
+    "walls": {
+      "white": "White",
+      "warmGrey": "Warm grey",
+      "sage": "Sage green",
+      "terracotta": "Terracotta",
+      "charcoal": "Charcoal"
+    },
+    "free": "360°",
+    "spin": "Auto-rotate",
+    "freeHint": "No wall or floor: drag to turn the piece all the way round."
   },
   "parts": {
     "top": "Top",

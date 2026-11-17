@@ -85,10 +85,12 @@ const SHOTS: { name: string; config: Config; click?: string[]; locale?: string; 
 for (const shot of SHOTS) {
   test(shot.name, async ({ page }) => {
     if (shot.viewport) await page.setViewportSize(shot.viewport);
-    await page.goto(`/${shot.locale ?? 'mk'}/configurator/${shot.config.model}?c=${encodeConfig(shot.config)}`);
+    // Desktop shots show the full-quality view even though the test browser renders without a GPU.
+    const quality = shot.viewport ? '' : 'quality=high&';
+    await page.goto(`/${shot.locale ?? 'mk'}/configurator/${shot.config.model}?${quality}c=${encodeConfig(shot.config)}`);
     await page.locator('[data-testid="viewer"][data-ready="1"]').waitFor({ timeout: 60_000 });
     for (const id of shot.click ?? []) await page.getByTestId(id).click();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(4000);
     const target = shot.viewport ? page : page.getByTestId('viewer');
     await target.screenshot({ path: `docs/screenshots/${shot.name}.png` });
   });
