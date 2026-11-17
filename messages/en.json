@@ -208,7 +208,16 @@
       "allBrands": "All",
       "outOfStock": "Out of stock at the supplier",
       "outOfStockLabel": "{name} (out of stock)",
-      "atSupplier": "View at the supplier"
+      "atSupplier": "View at the supplier",
+      "grain": {
+        "title": "Pattern direction on fronts",
+        "doors": "Doors",
+        "drawers": "Drawer fronts",
+        "vertical": "Vertical",
+        "horizontal": "Horizontal",
+        "help": "The wood grain runs along the piece's length in the cut list, so the direction also changes how the parts fit on the sheet.",
+        "helpPattern": "Turns the decor pattern by 90°."
+      }
     },
     "details": {
       "title": "Details",
@@ -247,11 +256,16 @@
       "mounts": {
         "wall": "Hung on the wall",
         "legs": "On legs",
+        "plinth": "On a plinth",
         "floor": "Stands on the floor"
       },
       "legHeight": "Leg height",
       "legHelp": "The total height stays the same; the body is lower by the height of the legs.",
       "legFinish": "Leg colour",
+      "plinthHeight": "Plinth height",
+      "plinthSetback": "Plinth set back",
+      "plinthFlush": "Flush",
+      "plinthBaseHelp": "A frame of board in the body colour instead of legs: a front panel banded all round, a back panel, side panels and supports under the joints, on levellers. The total height stays the same; the body is lower by the plinth height.",
       "setback": "Shelves shorter than the carcass",
       "setbackHelp": "How much shorter shelves are than the carcass depth, so they clear the back.",
       "plinth": "Plinth",
@@ -364,7 +378,8 @@
     "withRail": ", hanging rail",
     "columns": "Layout",
     "gridValue": "{columns, plural, one {# column} other {# columns}} × {rows, plural, one {# row} other {# rows}}",
-    "columnLine": "Column {n}: {width}, {count, plural, one {# compartment} other {# compartments}}{rails, plural, =0 {} one {, # hanging rail} other {, # hanging rails}}"
+    "columnLine": "Column {n}: {width}, {count, plural, one {# compartment} other {# compartments}}{rails, plural, =0 {} one {, # hanging rail} other {, # hanging rails}}",
+    "mountPlinth": "On a plinth, {height}"
   },
   "viewer": {
     "loading": "Loading 3D view…",
@@ -414,7 +429,7 @@
     "handleDetail": "Handle: {shape}, {finish}",
     "drawerSlideDetail": "Drawer slides, {length}",
     "items": {
-      "hinge": "Door hinge with mounting plate",
+      "hinge": "Soft-close hinge with mounting plate",
       "flapStay": "Flap stay",
       "handle": "Handle",
       "pushLatch": "Push-to-open latch",
@@ -426,17 +441,20 @@
       "screw450": "Carcass screw 4 × 50",
       "screwCap": "Screw cap in body colour",
       "handleScrew": "Handle screw M4",
-      "backNail": "Nail for HDF 1.4 × 20",
+      "backNail": "Nails for HDF 1.3 × 20, pack of 120",
       "wallPlug": "Wall plug with screw",
       "leg": "Leg",
       "hangingRail": "Hanging rail, cut to the element",
       "railHolder": "Rail holder",
       "glassHinge": "Hinge for glass door",
       "glassDoor": "Glass door in aluminium frame",
-      "plinthClip": "Plinth clip"
+      "plinthClip": "Plinth clip",
+      "plinthLeveller": "Leveller for 18 mm plinth panel"
     },
     "legDetail": "Leg, {height}, {finish}",
-    "glassDoorDetail": "Glass door, {frame} frame, {tint} glass ({area} m² in total)"
+    "glassDoorDetail": "Glass door, {frame} frame, {tint} glass ({area} m² in total)",
+    "backNailDetail": "Nails for HDF 1.3 × 20, pack of 120 ({count} needed)",
+    "hangingRailDetail": "Hanging rail, aluminium, by the metre ({count, plural, one {# rail} other {# rails}})"
   },
   "results": {
     "title": "Results",
@@ -505,8 +523,7 @@
       "dims": "{w} × {h}"
     },
     "price": {
-      "banding": "Edge banding, applied",
-      "cutting": "Cutting",
+      "banding": "Edge banding, band and gluing (your price)",
       "cols": {
         "item": "Item",
         "qty": "Quantity",
@@ -519,16 +536,24 @@
       "ownTitle": "Your own prices",
       "ownHelp": "Checked prices with a workshop? Enter them and recalculate.",
       "ownSheet": "Sheet price: {name}",
-      "ownBanding": "Edge banding per metre",
-      "ownCutting": "Cutting per metre",
+      "ownBanding": "Edge banding per metre, band and gluing",
+      "ownCutting": "Cutting per board sheet",
       "ownApply": "Recalculate",
       "ownReset": "Use our prices",
-      "disclaimer": "Indicative price in Macedonian denars. Delivery and assembly are not included. The final price is confirmed by the workshop."
+      "disclaimer": "Prices in Macedonian denars as listed by the supplier Soloprom on 16.11.2026. Delivery and assembly are not included. The final price is confirmed by the supplier.",
+      "band": "Edge band {tape}",
+      "bandColour": "Edge band {tape} (same colour as {name})",
+      "bandEstimate": "Edge band for {name} (no 22 mm band listed, typical price)",
+      "bandingService": "Edge banding with PUR glue (service)",
+      "hingeDrilling": "Drilling for hinges (service)",
+      "cuttingBoard": "Cutting, board (per sheet)",
+      "cuttingHdf": "Cutting, HDF (per sheet)"
     },
     "hardware": {
-      "note": "Quantities follow the parts list. Screws, caps, nails and plugs include a 10 % reserve.",
+      "note": "Quantities follow the parts list. Screws, caps, nails and plugs include a 10 % reserve. Prices are Soloprom's; screw caps, handle screws and wall plugs are not in their range, so those are estimates.",
       "item": "Item",
-      "qty": "Quantity"
+      "qty": "Quantity",
+      "atSupplier": "at the supplier"
     },
     "inquiry": {
       "title": "Send an inquiry",

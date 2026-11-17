@@ -13,6 +13,8 @@ export const wardrobe: ModelDef = {
   fronts: ['doors', 'drawers', 'open'],
   mounts: ['floor', 'legs'],
   legHeights: [50, 60, 100, 150, 200, 300],
+  plinthHeights: [],
+  plinthSetbacks: [],
   features: { doubleTop: false, back: true, handles: true, rail: true, shelfSetback: true, plinth: true, glass: true },
   wallHeight: 0,
   tags: ['size', 'columns', 'doors', 'rails'],

@@ -1,4 +1,4 @@
-import { getDecor, RATES } from './catalog';
+import { BANDING_ALLOWANCE, getDecor } from './catalog';
 import type { CutRow, Edges, Part, Role } from './types';
 
 export const ROLE_ORDER: Role[] = [
@@ -11,6 +11,7 @@ export const ROLE_ORDER: Role[] = [
   'drawerFront',
   'drawerSide',
   'drawerInner',
+  'plinth',
   'back',
   'drawerBottom',
 ];
@@ -33,7 +34,13 @@ export function bandingLength(part: Pick<Part, 'length' | 'width' | 'edges'>): n
   const { l1, l2, w1, w2 } = part.edges;
   const long = Number(l1) + Number(l2);
   const short = Number(w1) + Number(w2);
-  return long * (part.length + RATES.bandingAllowance) + short * (part.width + RATES.bandingAllowance);
+  return long * (part.length + BANDING_ALLOWANCE) + short * (part.width + BANDING_ALLOWANCE);
+}
+
+/** Banded edge length of one part in mm, without the allowance (what the edge bander glues). */
+export function bandedLength(part: Pick<Part, 'length' | 'width' | 'edges'>): number {
+  const { l1, l2, w1, w2 } = part.edges;
+  return (Number(l1) + Number(l2)) * part.length + (Number(w1) + Number(w2)) * part.width;
 }
 
 /**

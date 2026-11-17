@@ -27,8 +27,10 @@ export interface CellConfig {
   drawers: number;
   turn: Turn;
 }
-/** How the piece is supported: hung on the wall, standing on legs, or standing directly on the floor. */
-export type Mount = 'wall' | 'legs' | 'floor';
+/** How the piece is supported: hung on the wall, standing on legs, on a plinth (a recessed base frame of board), or directly on the floor. */
+export type Mount = 'wall' | 'legs' | 'plinth' | 'floor';
+/** Which way the decor pattern (wood grain) runs on a front. */
+export type GrainDirection = 'vertical' | 'horizontal';
 
 export interface ElementConfig {
   width: number;
@@ -59,15 +61,19 @@ export interface Config {
   handleShape: HandleShape;
   handleFinish: HandleFinish;
   mount: Mount;
-  /** Leg height in mm; used when `mount` is `legs`. The total height includes the legs. */
+  /** Height of the base in mm: the legs when `mount` is `legs`, the plinth when it is `plinth`. The total height includes it. */
   legHeight: number;
   legFinish: HandleFinish;
   /** Wardrobes: shared row heights, top to bottom, adding up to the total height. Empty for row furniture. */
   rows: number[];
   /** How much shorter shelves are than the carcass depth (mm), so they clear the back. */
   shelfSetback: number;
-  /** Panels covering the legs at the front and ends. */
+  /** Wardrobes: panels covering the legs at the front and ends. */
   plinth: { front: boolean; left: boolean; right: boolean };
+  /** How far the plinth base sits back from the front and the ends (mm), when `mount` is `plinth`. */
+  plinthSetback: number;
+  /** Pattern direction on door leaves and on drawer fronts. */
+  frontGrain: { doors: GrainDirection; drawers: GrainDirection };
   glassFrame: GlassFrame;
   glassTint: GlassTint;
 }
@@ -237,16 +243,19 @@ export interface NestResult {
 
 export interface HardwareItem {
   key: string;
+  /** Pieces, pairs, or metres for items sold by length. */
   qty: number;
-  unit: 'pcs' | 'pair';
+  unit: 'pcs' | 'pair' | 'm';
   unitPrice: number;
+  /** Supplier's product page the price comes from. */
+  source?: string;
   /** Extra detail for the label: handle shape/finish or slide length. */
   detail?: Record<string, string | number>;
 }
 
 export interface PriceLine {
   key: string;
-  kind: 'sheet' | 'banding' | 'cutting' | 'hardware';
+  kind: 'sheet' | 'banding' | 'cutting' | 'service' | 'hardware';
   qty: number;
   unit: 'sheet' | 'm' | 'pcs' | 'pair';
   unitPrice: number;

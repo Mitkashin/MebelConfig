@@ -1,7 +1,7 @@
 import { buildFittings, buildHandles, buildParts } from './build';
 import { cellCount } from './grid';
-import { CURRENCY, HANDLE_PRICE_FACTOR, HARDWARE_PRICES, RATES } from './catalog';
-import { bandingLength, buildCutList } from './cutlist';
+import { CURRENCY, getDecor, HANDLE_PRICES, HARDWARE, KNOB_PRICES, LEG_PRICES, NAILS_PER_PACK, nearestPrice, SERVICES, SLIDE_PRICES } from './catalog';
+import { bandedLength, bandingLength, buildCutList } from './cutlist';
 import { requireModel } from './models';
 import { nest } from './nesting';
 import { carcassDepth, slideLength } from './rules';
@@ -15,10 +15,9 @@ const withReserve = (n: number) => (n > 0 ? n + Math.ceil(n * RESERVE) : 0);
 export function buildHardware(config: Config, parts: Part[], fittings: Fitting[] = []): HardwareItem[] {
   const model = requireModel(config.model);
   const p = model.params;
-  const price = (key: string) => HARDWARE_PRICES[key] ?? 0;
   const items: HardwareItem[] = [];
-  const push = (key: string, qty: number, unit: HardwareItem['unit'] = 'pcs', detail?: HardwareItem['detail'], unitPrice = price(key)) => {
-    if (qty > 0) items.push({ key, qty, unit, unitPrice, ...(detail ? { detail } : {}) });
+  const push = (key: string, qty: number, unit: HardwareItem['unit'] = 'pcs', detail?: HardwareItem['detail'], priced: { price: number; source?: string } | undefined = HARDWARE[key]) => {
+    if (qty > 0) items.push({ key, qty, unit, unitPrice: priced?.price ?? 0, ...(detail ? { detail } : {}), ...(priced?.source ? { source: priced.source } : {}) });
   };
 
   const doors = parts.filter((x) => x.role === 'door');
@@ -40,20 +39,26 @@ export function buildHardware(config: Config, parts: Part[], fittings: Fitting[]
   if (glassDoors.length > 0) {
     // Glass doors come ready-made in an aluminium frame, priced by area.
     const area = glassDoors.reduce((s, d) => s + (d.length * d.width) / 1e6, 0);
-    push('glassDoor', glassDoors.length, 'pcs', { area: Math.round(area * 100) / 100, frame: config.glassFrame, tint: config.glassTint }, Math.round((area * p.glassPricePerM2) / glassDoors.length));
+    push('glassDoor', glassDoors.length, 'pcs', { area: Math.round(area * 100) / 100, frame: config.glassFrame, tint: config.glassTint }, { price: Math.round((area * p.glassPricePerM2) / glassDoors.length) });
   }
   push('flapStay', doors.filter((d) => d.hinge === 'bottom').length);
   if (handles) {
-    push('handle', fronts, 'pcs', { shape: config.handleShape, finish: config.handleFinish }, Math.round(price('handle') * HANDLE_PRICE_FACTOR[config.handleShape]));
+    const handle = config.handleShape === 'knob' ? (KNOB_PRICES[config.handleFinish] ?? HANDLE_PRICES.knob) : HANDLE_PRICES[config.handleShape];
+    push('handle', fronts, 'pcs', { shape: config.handleShape, finish: config.handleFinish }, handle);
   } else {
     push('pushLatch', fronts);
   }
-  if (drawers > 0) push('drawerSlide', drawers, 'pair', { length: slideLength(carcassDepth(config, p), p) ?? 0 });
+  if (drawers > 0) {
+    const length = slideLength(carcassDepth(config, p), p) ?? 0;
+    push('drawerSlide', drawers, 'pair', { length }, nearestPrice(SLIDE_PRICES, length));
+  }
   push('shelfPin', shelves * 4);
   const legs = fittings.filter((f) => f.kind === 'leg').length;
   const rails = fittings.filter((f) => f.kind === 'rail').length;
-  push('leg', legs, 'pcs', { height: config.legHeight, finish: config.legFinish });
-  push('hangingRail', rails);
+  push('leg', legs, 'pcs', { height: config.legHeight, finish: config.legFinish }, nearestPrice(LEG_PRICES, config.legHeight));
+  // The rail is sold by the metre: the line is priced by the total length, rounded up to 10 cm.
+  const railMeters = Math.ceil(fittings.filter((f) => f.kind === 'rail').reduce((s, f) => s + f.size[0], 0) / 100) / 10;
+  push('hangingRail', rails > 0 ? railMeters : 0, 'm', { count: rails });
   push('railHolder', rails * 2);
   // Hung pieces carry on two brackets per element; tall standing pieces get one each against tipping.
   const brackets = config.mount === 'wall' ? elements * 2 : config.height > 1200 ? elements : 0;
@@ -62,19 +67,26 @@ export function buildHardware(config: Config, parts: Part[], fittings: Fitting[]
   // 3.5x16: four per hinge, eight per pair of slides, two per push latch, two per rail holder.
   push('screw3516', withReserve(hinges * 4 + drawers * 8 + (handles ? 0 : fronts * 2) + rails * 4));
   // 4x30: top fixed through the rails (4 per carcass), wall brackets (2 each), drawer fronts and legs (4 each).
-  const plinths = parts.filter((x) => x.role === 'plinth').length;
-  push('plinthClip', plinths * 3);
+  const plinths = parts.filter((x) => x.role === 'plinth');
+  const plinthBase = !grid && config.mount === 'plinth';
+  // A plinth base stands on levellers under its side panels and supports, two each; wardrobe plinth panels clip to the legs.
+  const plinthRuns = plinthBase ? plinths.filter((x) => x.lengthAxis === 2).length : 0;
+  push('plinthLeveller', plinthRuns * 2);
+  push('plinthClip', plinthBase ? 0 : plinths.length * 3);
   // Stacked wardrobe carcasses are screwed to each other: 4 screws per joint.
   const stackJoints = grid ? config.elements.reduce((s, e) => s + e.cells.length - 1, 0) + (elements - 1) * 2 : 0;
   push('screw430', withReserve((grid ? stackJoints * 4 : elements * 4) + brackets * 2 + drawers * 4 + legs * 4));
-  // 4x50: bottom (and top for wardrobes) to sides, rails to sides, 4 corner joints per drawer box.
+  // 4x50: bottom (and top for wardrobes) to sides, rails to sides, 4 corner joints per drawer box, plinth base.
   const depthForScrews = grid ? config.depth : carcassDepth(config, p);
   const perJoint = depthForScrews > 400 ? 3 : 2;
   const carcassScrews = withReserve(carcasses * (grid ? 4 * perJoint : 2 * perJoint + 4 * 2) + drawers * 4 * 2);
-  push('screw450', carcassScrews);
+  // Plinth base: two screws at each end of every side panel and support, and four through each carcass bottom (hidden, no caps).
+  const plinthScrews = plinthBase ? plinthRuns * 2 * 2 + elements * 4 : 0;
+  push('screw450', carcassScrews + withReserve(plinthScrews));
   push('screwCap', carcassScrews);
   if (handles) push('handleScrew', withReserve(fronts * (config.handleShape === 'knob' ? 1 : 2)));
-  push('backNail', withReserve(nailed.reduce((s, b) => s + Math.ceil((2 * (b.length + b.width)) / 150), 0)));
+  const nails = withReserve(nailed.reduce((s, b) => s + Math.ceil((2 * (b.length + b.width)) / 150), 0));
+  push('backNail', Math.ceil(nails / NAILS_PER_PACK), 'pcs', { count: nails });
   push('wallPlug', withReserve(brackets * 2));
   return items;
 }
@@ -82,18 +94,21 @@ export function buildHardware(config: Config, parts: Part[], fittings: Fitting[]
 /** Customer-entered prices that replace the catalogue ones (after checking with a workshop). */
 export interface PriceOverrides {
   sheet?: Record<string, number>;
+  /** All-in edge banding per metre (band and gluing), replacing the per-decor band and the service. */
   bandingPerM?: number;
-  cuttingPerM?: number;
+  /** Cutting per board sheet. */
+  cuttingPerSheet?: number;
 }
 
 /** Price as line items. The total is defined as the sum of the lines, so the two can never drift apart. */
 export function buildPrice(parts: Part[], nested: NestResult, hardware: HardwareItem[], overrides: PriceOverrides = {}): { price: Price; bandingMeters: number } {
   const lines: PriceLine[] = [];
-  const bandingRate = overrides.bandingPerM ?? RATES.bandingPerM;
-  const cuttingRate = overrides.cuttingPerM ?? RATES.cuttingPerM;
+  const m = (mm: number) => Math.round(mm / 10) / 100;
+  const sheetsOf = { board: 0, hdf: 0 };
   for (const stock of nested.stocks) {
     const sheets = nested.sheets.filter((s) => s.stockKey === stock.key);
     const qty = sheets.length;
+    if (stock.material === 'board' || stock.material === 'hdf') sheetsOf[stock.material] += qty;
     const unitPrice = overrides.sheet?.[stock.key] ?? stock.price;
     const used = sheets.reduce((s, x) => s + x.utilisation, 0) / Math.max(1, qty);
     lines.push({
@@ -106,10 +121,37 @@ export function buildPrice(parts: Part[], nested: NestResult, hardware: Hardware
       detail: { material: stock.material, thickness: stock.thickness, decor: stock.decor ?? '', utilisation: Math.round(used * 100) },
     });
   }
-  const bandingMeters = Math.round(parts.reduce((s, x) => s + bandingLength(x), 0) / 10) / 100;
-  lines.push({ key: 'banding', kind: 'banding', qty: bandingMeters, unit: 'm', unitPrice: bandingRate, total: Math.round(bandingMeters * bandingRate) });
-  const cutMeters = Math.round(nested.cutLength / 10) / 100;
-  lines.push({ key: 'cutting', kind: 'cutting', qty: cutMeters, unit: 'm', unitPrice: cuttingRate, total: Math.round(cutMeters * cuttingRate) });
+
+  // The supplier cuts per sheet bought.
+  const boardCut = overrides.cuttingPerSheet ?? SERVICES.cuttingPerSheet.board;
+  if (sheetsOf.board > 0) lines.push({ key: 'cutting:board', kind: 'cutting', qty: sheetsOf.board, unit: 'sheet', unitPrice: boardCut, total: sheetsOf.board * boardCut, detail: { material: 'board' } });
+  if (sheetsOf.hdf > 0) lines.push({ key: 'cutting:hdf', kind: 'cutting', qty: sheetsOf.hdf, unit: 'sheet', unitPrice: SERVICES.cuttingPerSheet.hdf, total: sheetsOf.hdf * SERVICES.cuttingPerSheet.hdf, detail: { material: 'hdf' } });
+
+  // Edge band: bought per decor with an allowance per edge; the gluing is charged on the edges themselves.
+  const bandMm = new Map<string, number>();
+  let gluedMm = 0;
+  for (const part of parts) {
+    const len = bandingLength(part);
+    if (len === 0 || !part.decor) continue;
+    bandMm.set(part.decor, (bandMm.get(part.decor) ?? 0) + len);
+    gluedMm += bandedLength(part);
+  }
+  const bandingMeters = m([...bandMm.values()].reduce((s, v) => s + v, 0));
+  if (overrides.bandingPerM !== undefined) {
+    lines.push({ key: 'banding', kind: 'banding', qty: bandingMeters, unit: 'm', unitPrice: overrides.bandingPerM, total: Math.round(bandingMeters * overrides.bandingPerM) });
+  } else if (bandingMeters > 0) {
+    for (const [decorId, mm] of bandMm) {
+      const decor = getDecor(decorId);
+      const unitPrice = decor?.band ?? 0;
+      lines.push({ key: `banding:${decorId}`, kind: 'banding', qty: m(mm), unit: 'm', unitPrice, total: Math.round(m(mm) * unitPrice), detail: { decor: decorId, match: decor?.bandMatch ?? 'estimate', tape: decor?.bandTape ?? '' } });
+    }
+    lines.push({ key: 'bandingService', kind: 'service', qty: m(gluedMm), unit: 'm', unitPrice: SERVICES.bandingPerM, total: Math.round(m(gluedMm) * SERVICES.bandingPerM) });
+  }
+
+  // Hinge cups drilled by the supplier (glass doors arrive ready to hang).
+  const cups = parts.filter((x) => x.role === 'door' && x.material === 'board').reduce((s, x) => s + (x.hinges ?? 0), 0);
+  if (cups > 0) lines.push({ key: 'hingeDrilling', kind: 'service', qty: cups, unit: 'pcs', unitPrice: SERVICES.hingeDrilling, total: cups * SERVICES.hingeDrilling });
+
   for (const item of hardware) {
     lines.push({
       key: `hardware:${item.key}`,
@@ -117,7 +159,7 @@ export function buildPrice(parts: Part[], nested: NestResult, hardware: Hardware
       qty: item.qty,
       unit: item.unit,
       unitPrice: item.unitPrice,
-      total: item.qty * item.unitPrice,
+      total: Math.round(item.qty * item.unitPrice),
       ...(item.detail ? { detail: item.detail } : {}),
     });
   }

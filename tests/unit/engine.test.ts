@@ -2,12 +2,12 @@ import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildParts, carcassWidthsFor } from '@/engine/build';
 import { cellCaps, removeCell, splitCell } from '@/engine/grid';
-import { DECORS, SHEET } from '@/engine/catalog';
+import { DECORS, LEG_PRICES, nearestPrice, SERVICES, SHEET, SLIDE_PRICES } from '@/engine/catalog';
 import { buildCutList, cutListCsv, isGrained } from '@/engine/cutlist';
 import { derive } from '@/engine/derive';
 import { MODELS, requireModel } from '@/engine/models';
 import { nest } from '@/engine/nesting';
-import { distributeEqual, elementMaxShelves, limits, maxDrawers, maxShelves, normalise, resizeElement, scaleWidths, shelfSpacing, validate } from '@/engine/rules';
+import { baseHeights, distributeEqual, elementMaxShelves, limits, maxDrawers, maxShelves, normalise, resizeElement, scaleWidths, shelfSpacing, validate } from '@/engine/rules';
 import { decodeConfig, defaultConfig, encodeConfig } from '@/engine/share';
 import type { CellConfig, Config, ElementConfig, Part } from '@/engine/types';
 
@@ -43,6 +43,7 @@ function randomConfig(seed: number): Config {
     widths = distributeEqual(width, n);
   }
   const template = model.defaults.elements[0]!;
+  const mount = pick(model.mounts);
   const base: Config = {
     ...defaultConfig(model.slug),
     width,
@@ -54,8 +55,10 @@ function randomConfig(seed: number): Config {
     frontDecor: pick(DECORS).id,
     openingType: r() < 0.8 ? 'handles' : 'push',
     handleShape: pick(['bar128', 'bar320', 'longBar', 'knob', 'shell', 'edge', 'topPull'] as const),
-    mount: pick(model.mounts),
-    legHeight: model.legHeights.length ? pick(model.legHeights) : 0,
+    mount,
+    legHeight: baseHeights(model, mount).length ? pick(baseHeights(model, mount)) : 0,
+    plinthSetback: model.plinthSetbacks.length ? pick(model.plinthSetbacks) : 30,
+    frontGrain: { doors: pick(['vertical', 'horizontal'] as const), drawers: pick(['vertical', 'horizontal'] as const) },
     elements: widths.map((w) => ({ ...template, width: w, rail: false, shelves: 0, cells: [], ownRows: false })),
   };
   const lim = limits(base, model);
@@ -194,7 +197,11 @@ describe('defaults', () => {
     expect(d.sheetCount).toBe(3);
     expect(d.bandingMeters).toBe(21.04);
     const qty = Object.fromEntries(d.hardware.map((h) => [h.key, h.qty]));
-    expect(qty).toMatchObject({ hinge: 6, handle: 3, shelfPin: 12, wallBracket: 6, screw3516: 27, screw430: 27, screw450: 40, screwCap: 40, handleScrew: 7, backNail: 53, wallPlug: 14 });
+    expect(qty).toMatchObject({ hinge: 6, handle: 3, shelfPin: 12, wallBracket: 6, screw3516: 27, screw430: 27, screw450: 40, screwCap: 40, handleScrew: 7, wallPlug: 14 });
+    // HDF nails come in packs of 120: the 53 the reference lists fit in one.
+    const nails = d.hardware.find((h) => h.key === 'backNail');
+    expect(nails?.detail?.count).toBe(53);
+    expect(nails?.qty).toBe(1);
   });
 
   it('shelf limits follow the minimum spacing', () => {
@@ -381,7 +388,10 @@ describe('invariants over random configurations', () => {
       const glass = d.parts.filter((x) => x.material === 'glass');
       expect(qty('glassDoor')).toBe(glass.length);
       expect(qty('hinge') + qty('glassHinge')).toBe(d.parts.filter((x) => x.role === 'door').reduce((s, x) => s + (x.hinges ?? 0), 0));
-      expect(qty('hangingRail')).toBe(d.fittings.filter((f) => f.kind === 'rail').length);
+      const rails = d.fittings.filter((f) => f.kind === 'rail');
+      expect(d.hardware.find((h) => h.key === 'hangingRail')?.detail?.count ?? 0).toBe(rails.length);
+      // Sold by the metre: the line covers the total rail length, rounded up to 10 cm.
+      expect(qty('hangingRail')).toBe(Math.ceil(rails.reduce((s, f) => s + f.size[0], 0) / 100) / 10);
     }
   });
 });
@@ -578,5 +588,125 @@ describe('sharing and export', () => {
     const result = nest(parts);
     const rotated = result.sheets.flatMap((s) => s.placements).filter((pl) => pl.rotated).map((pl) => parts.find((x) => x.id === pl.partId)!);
     expect(rotated.every((x) => !isGrained(x))).toBe(true);
+  });
+});
+
+describe('supplier prices', () => {
+  it('every decor has a matching edge band price', () => {
+    for (const d of DECORS) {
+      expect(d.band, d.id).toBeGreaterThan(10);
+      expect(['exact', 'colour', 'estimate']).toContain(d.bandMatch);
+      if (d.bandMatch !== 'estimate') expect(d.bandTape, d.id).toBeTruthy();
+    }
+  });
+
+  it('charges cutting per sheet, the band per decor plus the gluing, and hinge drilling', () => {
+    const config = { ...defaultConfig('sideboard-1'), bodyDecor: 'h1145-st10', frontDecor: 'w1200-st9' };
+    const d = derive(config);
+    const line = (key: string) => d.price.lines.find((l) => l.key === key);
+    const boardSheets = d.price.lines.filter((l) => l.key.startsWith('sheet:board')).reduce((s, l) => s + l.qty, 0);
+    expect(line('cutting:board')).toMatchObject({ qty: boardSheets, unitPrice: SERVICES.cuttingPerSheet.board });
+    expect(line('cutting:hdf')).toMatchObject({ qty: 1, unitPrice: SERVICES.cuttingPerSheet.hdf });
+    expect(line('sheet:hdf|3')?.unitPrice).toBe(SHEET.hdf.price);
+    expect(line('banding:h1145-st10')?.unitPrice).toBe(50);
+    expect(line('banding:w1200-st9')?.unitPrice).toBe(34);
+    const bandMeters = (line('banding:h1145-st10')?.qty ?? 0) + (line('banding:w1200-st9')?.qty ?? 0);
+    expect(bandMeters).toBeCloseTo(d.bandingMeters, 1);
+    // The gluing is charged on the edges themselves, without the band's allowance.
+    expect(line('bandingService')?.qty).toBeLessThan(d.bandingMeters);
+    expect(line('hingeDrilling')).toMatchObject({ qty: 6, unitPrice: SERVICES.hingeDrilling });
+    const hinge = d.hardware.find((h) => h.key === 'hinge');
+    expect(hinge?.source).toMatch(/^https:\/\/soloprom\.com\.mk\//);
+  });
+
+  it('a customer price for banding replaces the band and the gluing', () => {
+    const d = derive(defaultConfig('sideboard-1'), { bandingPerM: 100, cuttingPerSheet: 500 });
+    expect(d.price.lines.filter((l) => l.kind === 'banding' || l.kind === 'service').map((l) => l.key)).toEqual(['banding', 'hingeDrilling']);
+    expect(d.price.lines.find((l) => l.key === 'cutting:board')?.unitPrice).toBe(500);
+  });
+
+  it('prices slides and legs by the nearest listed size', () => {
+    const chest = defaultConfig('drawer-sideboard-1');
+    const d = derive(chest);
+    const slide = d.hardware.find((h) => h.key === 'drawerSlide')!;
+    expect(slide.unitPrice).toBe(nearestPrice(SLIDE_PRICES, Number(slide.detail?.length)).price);
+    expect(d.hardware.find((h) => h.key === 'leg')?.unitPrice).toBe(LEG_PRICES[chest.legHeight]?.price);
+  });
+});
+
+describe('front grain', () => {
+  it('turns drawer fronts and doors independently, in the cut list too', () => {
+    const chest = { ...defaultConfig('drawer-sideboard-1'), frontDecor: 'h1145-st10' };
+    const across = derive({ ...chest, frontGrain: { doors: 'vertical', drawers: 'horizontal' } });
+    for (const f of across.parts.filter((x) => x.role === 'drawerFront')) {
+      expect(f.lengthAxis, f.id).toBe(0);
+      expect(f.length).toBe(f.size[0]);
+    }
+    const up = derive({ ...chest, frontGrain: { doors: 'vertical', drawers: 'vertical' } });
+    for (const f of up.parts.filter((x) => x.role === 'drawerFront')) expect(f.lengthAxis, f.id).toBe(1);
+    const row = across.cutList.find((r) => r.role === 'drawerFront')!;
+    expect(row.length).toBeGreaterThan(row.width);
+    expect(row.grain).toBe(true);
+
+    const board = { ...defaultConfig('sideboard-1'), frontDecor: 'h1145-st10' };
+    const doors = derive({ ...board, frontGrain: { doors: 'horizontal', drawers: 'vertical' } }).parts.filter((x) => x.role === 'door');
+    expect(doors.every((x) => x.lengthAxis === 0)).toBe(true);
+  });
+
+  it('applies to wardrobe fronts as well', () => {
+    const w = defaultConfig('wardrobe-1');
+    const parts = derive({ ...w, frontGrain: { doors: 'horizontal', drawers: 'horizontal' } }).parts.filter((x) => (x.role === 'door' && x.material === 'board') || x.role === 'drawerFront');
+    expect(parts.length).toBeGreaterThan(0);
+    expect(parts.every((x) => x.lengthAxis === 0 || x.lengthAxis === 2)).toBe(true);
+  });
+});
+
+describe('plinth', () => {
+  const chest = (patch: Partial<Config> = {}): Config => ({ ...defaultConfig('drawer-sideboard-1'), mount: 'plinth', legHeight: 100, plinthSetback: 30, ...patch });
+
+  it('stands the carcass on a recessed frame of body board and keeps the overall height', () => {
+    const config = chest();
+    expect(validate(config)).toEqual([]);
+    const d = derive(config);
+    const part = (id: string) => d.parts.find((x) => x.id === id)!;
+    expect(part('e0.bottom').position[1]).toBe(100);
+    expect(part('top').position[1] + 18).toBe(config.height);
+    const front = part('plinth.front');
+    expect(front.position).toEqual([30, 0, config.depth - 30 - 18]);
+    expect(front.size).toEqual([config.width - 60, 100, 18]);
+    expect(front.decor).toBe(config.bodyDecor);
+    expect(front.edges).toEqual({ l1: true, l2: true, w1: true, w2: true });
+    // Two elements: one support under the joint.
+    expect(d.parts.filter((x) => x.role === 'plinth').map((x) => x.id).sort()).toEqual(['plinth.back', 'plinth.front', 'plinth.left', 'plinth.right', 'plinth.support0']);
+    expect(d.fittings.filter((f) => f.kind === 'leg')).toHaveLength(0);
+    const qty = (key: string) => d.hardware.find((h) => h.key === key)?.qty ?? 0;
+    expect(qty('plinthLeveller')).toBe(6);
+    expect(qty('leg')).toBe(0);
+    expect(qty('plinthClip')).toBe(0);
+    expect(d.cutList.some((r) => r.role === 'plinth')).toBe(true);
+  });
+
+  it('a flush plinth lines up with the fronts', () => {
+    const d = derive(chest({ plinthSetback: 0 }));
+    const front = d.parts.find((x) => x.id === 'plinth.front')!;
+    const drawer = d.parts.find((x) => x.role === 'drawerFront')!;
+    expect(front.position[2] + front.size[2]).toBe(drawer.position[2] + drawer.size[2]);
+  });
+
+  it('only offers the listed heights and set-backs, and snaps when the mount changes', () => {
+    const model = requireModel('drawer-sideboard-1');
+    expect(validate(chest({ legHeight: 200 })).map((i) => i.path)).toContain('legHeight');
+    expect(validate(chest({ plinthSetback: 10 })).map((i) => i.path)).toContain('plinthSetback');
+    expect(normalise(chest({ legHeight: 200 }), model).config.legHeight).toBe(150);
+    expect(normalise({ ...chest({ legHeight: 60 }), mount: 'legs' }, model).config.legHeight).toBe(100);
+    expect(validate({ ...defaultConfig('sideboard-1'), mount: 'plinth' }).map((i) => i.path)).toContain('mount');
+  });
+
+  it('old links without the newer fields still open', () => {
+    const older: Partial<Config> = defaultConfig('drawer-sideboard-1');
+    delete older.plinthSetback;
+    delete older.frontGrain;
+    const link = '3.' + Buffer.from(JSON.stringify(older)).toString('base64url');
+    expect(decodeConfig(link)).toEqual(defaultConfig('drawer-sideboard-1'));
   });
 });

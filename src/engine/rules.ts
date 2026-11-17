@@ -42,21 +42,33 @@ export const configSchema = z.object({
   openingType: z.enum(['handles', 'push']),
   handleShape: z.enum(HANDLE_SHAPES as [string, ...string[]]),
   handleFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown', 'graphite']),
-  mount: z.enum(['wall', 'legs', 'floor']),
+  mount: z.enum(['wall', 'legs', 'plinth', 'floor']),
   legHeight: z.number().int().min(0),
   legFinish: z.enum(['grey', 'black', 'gold', 'white', 'brown', 'graphite']),
   rows: z.array(z.number().int()),
   shelfSetback: z.number().int().min(0).max(100),
   plinth: z.object({ front: z.boolean(), left: z.boolean(), right: z.boolean() }),
+  plinthSetback: z.number().int().min(0).max(100),
+  frontGrain: z.object({ doors: z.enum(['vertical', 'horizontal']), drawers: z.enum(['vertical', 'horizontal']) }),
   glassFrame: z.enum(['black', 'white']),
   glassTint: z.enum(['clear', 'light', 'dark']),
 });
 
 type Zone = Pick<Config, 'height' | 'doubleTop' | 'mount' | 'legHeight'>;
 
-/** Height of the legs under the carcass (0 when hung or standing on the floor). */
+/** Height of the legs or plinth under the carcass (0 when hung or standing on the floor). */
 export function baseHeight(config: Pick<Config, 'mount' | 'legHeight'>): number {
-  return config.mount === 'legs' ? config.legHeight : 0;
+  return config.mount === 'legs' || config.mount === 'plinth' ? config.legHeight : 0;
+}
+
+/** Heights offered for the base under the current mount. */
+export function baseHeights(model: Pick<ModelDef, 'legHeights' | 'plinthHeights'>, mount: Config['mount']): number[] {
+  return mount === 'plinth' ? model.plinthHeights : mount === 'legs' ? model.legHeights : [];
+}
+
+/** The offered height nearest to `height` (ties go to the lower one). */
+export function nearestHeight(heights: number[], height: number): number {
+  return heights.reduce((a, b) => (Math.abs(b - height) < Math.abs(a - height) ? b : a), heights[0] ?? height);
 }
 
 /** Height available to the carcass: a double top and legs each take their share of the total height. */
@@ -186,7 +198,8 @@ export function validate(input: unknown): Issue[] {
 
   if (config.doubleTop && !model.features.doubleTop) out.push(issue('unsupported', 'doubleTop'));
   if (!model.mounts.includes(config.mount)) out.push(issue('unsupported', 'mount'));
-  if (config.mount === 'legs' && !model.legHeights.includes(config.legHeight)) out.push(issue('unsupported', 'legHeight'));
+  if ((config.mount === 'legs' || config.mount === 'plinth') && !baseHeights(model, config.mount).includes(config.legHeight)) out.push(issue('unsupported', 'legHeight'));
+  if (config.mount === 'plinth' && !model.plinthSetbacks.includes(config.plinthSetback)) out.push(issue('unsupported', 'plinthSetback'));
 
   const drawersCap = maxDrawers(config, p);
   const elementMax = Math.min(p.elementMax, config.width - (n - 1) * p.elementMin);
@@ -228,7 +241,11 @@ export function validate(input: unknown): Issue[] {
  * (fewer shelves when the height drops, and so on). Returns what was changed
  * so the UI can tell the customer.
  */
-export function normalise(config: Config, model: ModelDef): { config: Config; notices: Notice[] } {
+export function normalise(input: Config, model: ModelDef): { config: Config; notices: Notice[] } {
+  // Legs and plinths come in different heights: switching between them keeps the nearest one offered.
+  const heights = baseHeights(model, input.mount);
+  let config = heights.length && !heights.includes(input.legHeight) ? { ...input, legHeight: nearestHeight(heights, input.legHeight) } : input;
+  if (config.mount === 'plinth' && model.plinthSetbacks.length && !model.plinthSetbacks.includes(config.plinthSetback)) config = { ...config, plinthSetback: nearestHeight(model.plinthSetbacks, config.plinthSetback) };
   if (model.layout === 'grid') return normaliseGrid(config, model);
   const p = model.params;
   const notices: Notice[] = [];

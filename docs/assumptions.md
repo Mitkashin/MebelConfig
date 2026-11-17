@@ -15,17 +15,33 @@ engine or the UI.
 | Accounts | None. "Save" stores named designs in the browser; the share link is the portable form. | `src/store/saved.ts` |
 
 ## Materials and prices
+All prices are Soloprom's (soloprom.com.mk), checked against the shop on
+16.11.2026. Each hardware line links to the product its price comes from.
+
 | Item | Value |
 |---|---|
-| Board | 18 mm melamine chipboard, 2800 × 2070 mm; price per sheet from the supplier for each decor (see below) |
-| Back / drawer bottom | 3 mm HDF, 2800 × 2070 mm, 950 MKD/sheet |
-| Edge banding | 45 MKD/m applied, 30 mm allowance per banded edge |
-| Cutting | 30 MKD per metre of cut |
-| Hardware | Unit prices in `catalog.ts` (placeholders); included in the price as separate lines |
+| Board | 18 mm melamine chipboard, 2800 × 2070 mm; the supplier's price per sheet for each decor (all 183 re-checked, unchanged) |
+| Back / drawer bottom | 3 mm white HDF, Kronospan 8685, 2800 × 2070 mm, 1 190 MKD/sheet |
+| Cutting | Per sheet bought: 770 MKD per board sheet, 350 MKD per HDF sheet (the supplier does not charge per metre) |
+| Edge band | 22–23 mm ABS band, 0.8 mm, in the decor's own code (35–55 MKD/m); 30 mm allowance per banded edge |
+| Edge banding | PUR gluing as a service, 80 MKD per metre of edge (band bought separately) |
+| Hinge drilling | 40 MKD per hinge cup |
+| Hinges | Häfele Metalla 310 soft-close + 3D plate, 85 MKD; glass doors: Grass MIRRO + Tiomos plate, 580 MKD |
+| Drawer slides | Telescopic DD4509 per pair: 350 → 190, 400 → 210, 450 → 240, 500 → 280 MKD; other lengths take the nearest |
+| Legs | 1Q20 100/150/200 mm (250/265/285), LAILA 50 (192), Albufera 60 (43), COFREN 300 (438) |
+| Handles | One representative product per shape (574.10/128 and /320, UA112/556, GN56 knob by colour, UN59, APL10/704, Perfila 1/160) |
+| Other hardware | Flap stay 90, push latch 210, shelf pin 2, wall bracket 18, rail 250/m + holders 9, plinth clip 11, plinth leveller 25, screws 1, HDF nails 57 per 120 |
+| Not sold by Soloprom | Adhesive screw caps (1), handle screws (2), wall plugs (6), glass doors (9 500/m²): placeholders |
 | Saw kerf / edge trim | 4 mm / 10 mm per side (same as the reference) |
 
-Whole sheets are charged. Prices are indicative and exclude delivery and
-assembly; the UI says so.
+Whole sheets are charged, although Soloprom also sells half and quarter
+sheets (price not listed). Prices exclude delivery and assembly; the UI says
+so.
+
+Edge band matching: 134 decors have a band with the same code, 19 a band in
+the same colour with another surface code, and 30 have no 22 mm band listed
+(only 43 mm or none); those use the usual price for the brand and are marked
+"typical price" in the quote.
 
 ## Decor catalogue
 The decors are the owner's supplier's: all 183 decors of 18 mm
@@ -43,12 +59,31 @@ code, category, price per sheet, stock and the product photo. Stored in
   chosen.
 - **Textures:** each photo is mapped at real-world scale (one photo per
   600 mm for wood, 800 mm otherwise), with the grain along the part's length
-  as in the cut list, mirrored at the repeats to hide seams. The photos are
+  as in the cut list, mirrored at the repeats to hide seams. On doors and
+  drawer fronts the customer chooses vertical or horizontal grain
+  (separately); the cut list and the sheet layouts follow. The photos are
   600 × 600 px, so very close views look soft.
 - **Rights:** the photos belong to Soloprom and the manufacturers. Using
   them on a public site needs their agreement.
 - To refresh: re-collect from the supplier site and replace `decors.json`
   and `public/decors/` (full images and `thumb/`).
+
+## Plinth base
+The standing row models (standing sideboard, chest of drawers, nightstand)
+can stand on a plinth instead of legs. The plinth is a frame of 18 mm board
+in the body decor, 60, 80, 100, 120 or 150 mm tall (the total height
+includes it, as with legs), set back 0 (flush with the fronts), 30 or 50 mm
+from the front and both ends:
+
+- front panel across the width, banded all round; back panel across the
+  width; side panels between them; a support under each joint between
+  carcasses and in the middle of any carcass wider than 1 m;
+- two 18 mm panel levellers under each side panel and support; the frame is
+  screwed together (two 4 × 50 per panel end) and to each carcass bottom
+  (four per carcass);
+- switching between legs and plinth keeps the nearest offered height.
+
+The wardrobe keeps its own plinth panels over the legs.
 
 ## Construction rules
 Taken from the reference where observed: 18 mm board, 3 mm back, 4 mm front
@@ -116,10 +151,10 @@ their own limits and options, chosen by us:
 |---|---|---|---|---|
 | Wall-hung sideboard | doors, open, drawers | wall | 600–2780 / 300–2000 / 150–600 | the verified reference model |
 | Open sideboard | open | wall | 600–2780 / 300–1400 / 150–450 | no door, drawer or handle controls |
-| Standing sideboard | doors, open, drawers | legs 100/150/200 | 600–2780 / 450–1400 / 150–600 | total height includes the legs |
-| Chest of drawers | drawers, doors, open | legs or wall | 600–2780 / 400–1400 / 300–600 | |
+| Standing sideboard | doors, open, drawers | legs 100/150/200 or plinth | 600–2780 / 450–1400 / 150–600 | total height includes the legs |
+| Chest of drawers | drawers, doors, open | legs, plinth or wall | 600–2780 / 400–1400 / 300–600 | |
 | Wardrobe | doors, open | floor | 400–2780 / 1600–2400 / 350–650 | columns 400–1200 wide; hanging rails |
-| Nightstand | drawers, open, doors | legs or wall | 300–900 / 300–800 / 300–500 | 1–2 elements |
+| Nightstand | drawers, open, doors | legs, plinth or wall | 300–900 / 300–800 / 300–500 | 1–2 elements |
 | Wall cabinet | doors, open | wall | 300–1800 / 300–1200 / 150–400 | 1–4 elements |
 
 - **Legs:** two per carcass boundary (front and back), bought in; they are in

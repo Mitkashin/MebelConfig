@@ -9,6 +9,8 @@ export const wallCabinet: ModelDef = {
   fronts: ['doors', 'open'],
   mounts: ['wall'],
   legHeights: [],
+  plinthHeights: [],
+  plinthSetbacks: [],
   features: { doubleTop: false, back: true, handles: true, rail: false, shelfSetback: false, plinth: false, glass: false },
   wallHeight: 1350,
   tags: ['size', 'elements', 'doors', 'shelves'],

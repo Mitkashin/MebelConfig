@@ -214,6 +214,38 @@ test('the chooser opens each model, and each model shows only its own controls',
   await expect(page.locator('[data-item="leg"]')).toHaveAttribute('data-qty', '8');
 });
 
+test('chest of drawers: plinth instead of legs, and drawer fronts with the grain across', async ({ page }) => {
+  await page.goto('/en');
+  await page.getByTestId('model-drawer-sideboard-1').click();
+  await ready(page);
+  await page.getByRole('button', { name: 'Open all' }).click();
+
+  // A plinth replaces the legs: no legs in the scene, levellers in the shopping list.
+  await page.getByRole('radiogroup', { name: 'Mounting' }).getByRole('radio', { name: 'On a plinth' }).click();
+  await page.getByRole('radiogroup', { name: 'Plinth height' }).getByRole('radio', { name: '8.0 cm' }).click();
+  await page.getByRole('radiogroup', { name: 'Plinth set back' }).getByRole('radio', { name: 'Flush' }).click();
+  await expect(page.getByTestId('summary')).toContainText('On a plinth, 8.0 cm');
+  await expect(page.getByTestId('viewer')).toHaveAttribute('data-fitting-count', '0');
+
+  // A wood front decor offers the grain direction; drawer fronts turn to run across.
+  await page.getByTestId('decor-frontDecor').getByRole('searchbox').fill('H1145');
+  await page.getByTestId('decor-frontDecor').getByRole('radio', { name: /H1145 ST10/ }).click();
+  const grain = page.getByTestId('front-grain');
+  await expect(grain.getByRole('radiogroup', { name: 'Doors' })).toHaveCount(0);
+  await grain.getByRole('radiogroup', { name: 'Drawer fronts' }).getByRole('radio', { name: 'Horizontal' }).click();
+
+  await page.getByTestId('generate').click();
+  const fronts = page.getByTestId('cut-list').locator('tr', { hasText: 'Drawer front' }).first();
+  await expect(fronts).toContainText('59.8');
+  await expect(page.getByTestId('cut-list')).toContainText('Plinth');
+  await page.getByRole('tab', { name: 'Hardware' }).click();
+  await expect(page.locator('[data-item="plinthLeveller"]')).toHaveAttribute('data-qty', '6');
+  await expect(page.locator('[data-item="leg"]')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Price' }).click();
+  await expect(page.locator('[data-line="cutting:board"]')).toContainText('770');
+  await expect(page.locator('[data-line="bandingService"]')).toBeVisible();
+});
+
 test('wardrobe: compartments with rails, glass doors, remove, split, turn and plinth', async ({ page }) => {
   await page.goto('/en/configurator/wardrobe-1');
   await ready(page);
@@ -269,7 +301,8 @@ test('wardrobe: compartments with rails, glass doors, remove, split, turn and pl
   await expect(parts).toContainText('Glass in aluminium frame (ready-made)');
   await page.getByRole('tab', { name: 'Hardware' }).click();
   await expect(page.locator('[data-item="glassDoor"]')).toHaveAttribute('data-qty', '1');
-  await expect(page.locator('[data-item="hangingRail"]')).toHaveAttribute('data-qty', '3');
+  // Rails are sold by the metre; the row also says how many rails that is.
+  await expect(page.locator('[data-item="hangingRail"]')).toHaveAttribute('data-count', '3');
 
   // The share link restores every compartment.
   const shared = page.url();

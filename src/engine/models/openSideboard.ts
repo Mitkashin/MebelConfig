@@ -10,6 +10,8 @@ export const openSideboard: ModelDef = {
   fronts: ['open'],
   mounts: ['wall'],
   legHeights: [],
+  plinthHeights: [],
+  plinthSetbacks: [],
   features: { doubleTop: true, back: true, handles: false, rail: false, shelfSetback: false, plinth: false, glass: false },
   wallHeight: 450,
   tags: ['size', 'elements', 'shelves'],

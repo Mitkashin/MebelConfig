@@ -28,7 +28,7 @@ export function Summary() {
       ? [t('fronts'), ts('cells.summary', { count: config.elements.reduce((s2, e) => s2 + e.cells.length, 0), closed })]
       : [t('fronts'), ts('fronts.summary', { closed, total: config.elements.length })],
     [t('back'), config.back ? t('included') : t('none')],
-    [t('mount'), config.mount === 'legs' ? t('mountLegs', { height: f.length(config.legHeight) }) : ts(`details.mounts.${config.mount}`)],
+    [t('mount'), config.mount === 'legs' ? t('mountLegs', { height: f.length(config.legHeight) }) : config.mount === 'plinth' ? t('mountPlinth', { height: f.length(config.legHeight) }) : ts(`details.mounts.${config.mount}`)],
   ];
   if (model.features.doubleTop) rows.push([t('top'), config.doubleTop ? t('topDouble') : t('topSingle')]);
   if (showHandles) {

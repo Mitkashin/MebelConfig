@@ -30,7 +30,10 @@ export function decodeConfig(value: string | null | undefined): Config | null {
   if (!body) return null;
   if (version === VERSION) {
     try {
-      const config = JSON.parse(fromBase64Url(body)) as unknown;
+      const parsed = JSON.parse(fromBase64Url(body)) as Partial<Config>;
+      // Fields added later (plinth setback, front grain) take the model's defaults.
+      const defaults = typeof parsed?.model === 'string' ? getModel(parsed.model)?.defaults : undefined;
+      const config = defaults ? { ...structuredClone(defaults), ...parsed } : parsed;
       return validate(config).length === 0 ? (config as Config) : null;
     } catch {
       return null;
@@ -61,6 +64,8 @@ export function decodeConfig(value: string | null | undefined): Config | null {
       rows: defaults.rows,
       shelfSetback: defaults.shelfSetback,
       plinth: defaults.plinth,
+      plinthSetback: defaults.plinthSetback,
+      frontGrain: defaults.frontGrain,
       glassFrame: defaults.glassFrame,
       glassTint: defaults.glassTint,
     };
