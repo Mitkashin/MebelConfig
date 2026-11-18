@@ -23,6 +23,9 @@ interface SceneState {
   /** Exploded view: boards shown see-through, and how solid they stay (0.1–0.9). */
   seeThrough: boolean;
   opacity: number;
+  /** Exploded view: each part shows its cut-list number. */
+  partLabels: boolean;
+  setPartLabels: (partLabels: boolean) => void;
   setSeeThrough: (seeThrough: boolean) => void;
   setOpacity: (opacity: number) => void;
   setBackdrop: (backdrop: Backdrop) => void;
@@ -46,6 +49,8 @@ export const useScene = create<SceneState>((set, get) => ({
   spin: false,
   seeThrough: false,
   opacity: 0.4,
+  partLabels: false,
+  setPartLabels: (partLabels) => set({ partLabels }),
   setSeeThrough: (seeThrough) => set({ seeThrough }),
   setOpacity: (opacity) => set({ opacity: Math.min(0.9, Math.max(0.1, opacity)) }),
   setBackdrop: (backdrop) => {

@@ -25,13 +25,15 @@ const toolBase = 'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium s
 const toolOff = `${toolBase} border-line bg-surface/95 hover:border-accent hover:text-accent`;
 const toolOn = `${toolBase} border-accent bg-accent text-white`;
 
-/** Exploded view only: turn the boards see-through, with a slider for how much. */
+/** Exploded view only: see-through boards (with a slider for how much) and cut-list numbers on the parts. */
 function SeeThroughControl({ className, testId }: { className: string; testId: string }) {
   const t = useTranslations('viewer');
   const seeThrough = useScene((s) => s.seeThrough);
   const opacity = useScene((s) => s.opacity);
   const setSeeThrough = useScene((s) => s.setSeeThrough);
   const setOpacity = useScene((s) => s.setOpacity);
+  const partLabels = useScene((s) => s.partLabels);
+  const setPartLabels = useScene((s) => s.setPartLabels);
   const amount = Math.round((1 - opacity) * 100);
   return (
     <div className={`no-print z-20 w-56 rounded-2xl border border-line bg-surface/95 p-2.5 text-sm shadow-lg backdrop-blur ${className}`} data-testid={testId}>
@@ -65,6 +67,19 @@ function SeeThroughControl({ className, testId }: { className: string; testId: s
           <span className="w-9 text-right text-xs tabular-nums">{amount}%</span>
         </label>
       )}
+      <div className="mt-2 flex items-center justify-between gap-3 border-t border-line pt-2">
+        <span className="font-medium">{t('partLabels')}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={partLabels}
+          aria-label={t('partLabels')}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition ${partLabels ? 'bg-accent' : 'bg-line'}`}
+          onClick={() => setPartLabels(!partLabels)}
+        >
+          <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${partLabels ? 'translate-x-5' : ''}`} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -92,6 +107,7 @@ export function Viewer() {
   const hydrateScene = useScene((s) => s.hydrate);
   const seeThrough = useScene((s) => s.seeThrough);
   const opacity = useScene((s) => s.opacity);
+  const partLabels = useScene((s) => s.partLabels);
   useEffect(() => hydrateScene(), [hydrateScene]);
 
   const [sceneOpen, setSceneOpen] = useState(false);
@@ -189,6 +205,7 @@ export function Viewer() {
         spin={spin}
         captureRef={captureRef}
         seeThrough={exploded && seeThrough ? opacity : null}
+        partLabels={exploded && partLabels}
         fallback={<Placeholder text={t('unsupported')} />}
       />
       <div className="no-print absolute right-2 bottom-2 left-2 z-10 flex gap-1.5 overflow-x-auto sm:top-3 sm:right-3 sm:bottom-auto sm:left-3 sm:flex-wrap sm:justify-end sm:gap-2 sm:overflow-visible">

@@ -268,6 +268,11 @@ test('chest of drawers: 90 cm deep; exploded view with see-through boards', asyn
   const slider = panel.getByRole('slider', { name: 'Transparency' });
   await slider.fill('75');
   await expect(panel).toContainText('75%');
+  // Its own switch puts every part's cut-list number on the part.
+  await expect(page.getByTestId('part-label')).toHaveCount(0);
+  await panel.getByRole('switch', { name: 'Part numbers' }).click();
+  await expect(page.getByTestId('part-label').first()).toBeVisible();
+  expect(await page.getByTestId('part-label').count()).toBe(Number(await page.getByTestId('viewer').getAttribute('data-part-count')));
   await page.getByTestId('toggle-exploded').click();
   await expect(page.getByTestId('see-through')).toHaveCount(0);
 });

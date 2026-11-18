@@ -416,7 +416,8 @@
     },
     "free": "360°",
     "spin": "Auto-rotate",
-    "freeHint": "No wall or floor: drag to turn the piece all the way round."
+    "freeHint": "No wall or floor: drag to turn the piece all the way round.",
+    "partLabels": "Part numbers"
   },
   "parts": {
     "top": "Top",

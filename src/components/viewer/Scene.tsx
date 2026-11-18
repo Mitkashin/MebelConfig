@@ -2,7 +2,7 @@
 
 import { Edges, Html, Line, OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Component, createContext, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { Component, createContext, Fragment, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import * as THREE from 'three';
 import { decorFinish, getDecor, HANDLE_FINISHES, type DecorFinish } from '@/engine/catalog';
 import type { Config, Fitting, HandlePlacement, Part, Vec3 } from '@/engine/types';
@@ -43,6 +43,8 @@ export interface SceneProps {
   spin: boolean;
   /** Opacity of the boards when they are shown see-through (exploded view), or null for solid. */
   seeThrough: number | null;
+  /** Show each part's cut-list number on it (exploded view, switched on by the customer). */
+  partLabels: boolean;
 }
 
 /** Glass door look, passed down rather than through every part. */
@@ -452,6 +454,19 @@ function DimensionLine({ from, to, text, tick }: { from: Vec3; to: Vec3; text: s
   );
 }
 
+/** Cut-list number on a part, at its top-left front corner (as seen from the front); it moves with the part. */
+function PartLabel({ part, no }: { part: Part; no: number }) {
+  const [x, y, z] = part.position;
+  const [, sy, sz] = part.size;
+  return (
+    <Html position={[x, y + sy, z + sz]} zIndexRange={[6, 0]} style={{ pointerEvents: 'none', transform: 'translate(3px, 3px)' }}>
+      <span className="grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] leading-none font-bold text-white shadow ring-1 ring-white/80" style={{ backgroundColor: rowColor(no) }} data-testid="part-label">
+        {no}
+      </span>
+    </Html>
+  );
+}
+
 function Dimensions({ config, labels }: Pick<SceneProps, 'config' | 'labels'>) {
   const { width: W, height: H, depth: D } = config;
   const gap = 70;
@@ -810,7 +825,12 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
               <Mover key={spec.id} spec={spec}>
                 {spec.parts.map((part) => {
                   const no = rowNoByPart[part.id];
-                  return <PartMesh key={part.id} part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} simple={tier === 'low'} seeThrough={props.seeThrough !== null} onSelect={onSelect} />;
+                  return (
+                    <Fragment key={part.id}>
+                      <PartMesh part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} simple={tier === 'low'} seeThrough={props.seeThrough !== null} onSelect={onSelect} />
+                      {props.partLabels && no ? <PartLabel part={part} no={no} /> : null}
+                    </Fragment>
+                  );
                 })}
                 {spec.handles.map((h) => (
                   <HandleMesh key={h.id} handle={h} color={handleColor} />
