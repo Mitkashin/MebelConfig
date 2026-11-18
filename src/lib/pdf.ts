@@ -23,8 +23,8 @@ export interface PdfInput {
 
 /** Sheet layout as a standalone SVG string (used for the PDF; the page renders the same data as JSX). */
 export function sheetSvg(sheet: Sheet, stock: Stock, rowNoByPart: Record<string, number>, trim: number): string {
-  const L = stock.sheetLength;
-  const W = stock.sheetWidth;
+  const L = sheet.length;
+  const W = sheet.width;
   const rect = (pl: Placement) => {
     const no = rowNoByPart[pl.partId] ?? 0;
     const size = Math.max(28, Math.min(70, Math.min(pl.w, pl.h) * 0.45));
@@ -34,7 +34,7 @@ export function sheetSvg(sheet: Sheet, stock: Stock, rowNoByPart: Record<string,
     );
   };
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L} ${W}" width="520" height="${Math.round((520 * W) / L)}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L} ${W}" width="${Math.round((520 * L) / stock.sheetLength)}" height="${Math.round((520 * W) / stock.sheetLength)}">` +
     `<rect x="0" y="0" width="${L}" height="${W}" fill="#f4f1e8" stroke="#8a8f8c" stroke-width="6"/>` +
     `<rect x="${trim}" y="${trim}" width="${L - 2 * trim}" height="${W - 2 * trim}" fill="none" stroke="#8a8f8c" stroke-width="3" stroke-dasharray="24 16"/>` +
     sheet.placements.map(rect).join('') +

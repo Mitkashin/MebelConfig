@@ -74,6 +74,8 @@ export interface Config {
   plinthSetback: number;
   /** Pattern direction on door leaves and on drawer fronts. */
   frontGrain: { doors: GrainDirection; drawers: GrainDirection };
+  /** How many identical pieces are ordered; their parts share the sheets. */
+  quantity: number;
   glassFrame: GlassFrame;
   glassTint: GlassTint;
 }
@@ -228,6 +230,11 @@ export interface Placement {
 export interface Sheet {
   stockKey: string;
   index: number;
+  /** Size of the piece bought: a whole sheet, or a half where the parts fit. */
+  length: number;
+  width: number;
+  /** 1 or 0.5 of a sheet. */
+  fraction: number;
   placements: Placement[];
   usedArea: number;
   utilisation: number;

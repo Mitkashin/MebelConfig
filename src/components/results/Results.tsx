@@ -167,12 +167,15 @@ function SheetDiagram({ sheet, stock, rowNoByPart }: { sheet: Sheet; stock: Stoc
   const selected = useConfigurator((s) => s.selected);
   const rows = useConfigurator((s) => s.derived.cutList);
   const select = useConfigurator((s) => s.select);
-  const L = stock.sheetLength;
-  const W = stock.sheetWidth;
+  const L = sheet.length;
+  const W = sheet.width;
   return (
     <figure className="grid gap-1.5" data-testid="sheet">
-      <figcaption className="text-sm">{t('sheets.caption', { n: sheet.index + 1, used: f.percent(sheet.utilisation), parts: sheet.placements.length })}</figcaption>
-      <svg viewBox={`0 0 ${L} ${W}`} className="w-full rounded-lg border border-line bg-[#f4f1e8]" role="img" aria-label={t('sheets.aria', { n: sheet.index + 1, parts: sheet.placements.length })}>
+      <figcaption className="text-sm">
+        {t('sheets.caption', { n: sheet.index + 1, used: f.percent(sheet.utilisation), parts: sheet.placements.length })}
+        {sheet.fraction < 1 && <span className="ml-2 font-medium text-accent">{t('sheets.half', { size: `${sheet.length} × ${sheet.width}` })}</span>}
+      </figcaption>
+      <svg viewBox={`0 0 ${L} ${W}`} style={{ width: `${(100 * L) / stock.sheetLength}%` }} className="rounded-lg border border-line bg-[#f4f1e8]" role="img" aria-label={t('sheets.aria', { n: sheet.index + 1, parts: sheet.placements.length })}>
         <rect x={SHEET.trim} y={SHEET.trim} width={L - 2 * SHEET.trim} height={W - 2 * SHEET.trim} fill="none" stroke="#8a8f8c" strokeWidth="3" strokeDasharray="24 16" />
         {sheet.placements.map((pl) => {
           const no = rowNoByPart[pl.partId] ?? 0;
@@ -221,7 +224,7 @@ function Sheets() {
         return (
           <section key={stock.key} className="grid gap-3">
             <h3 className="text-base font-semibold">
-              {t('sheets.stock', { name: stockName(stock), count: sheets.length, size: `${stock.sheetLength} × ${stock.sheetWidth}` })}
+              {t('sheets.stock', { name: stockName(stock), count: sheets.reduce((n, x) => n + x.fraction, 0), size: `${stock.sheetLength} × ${stock.sheetWidth}` })}
               {stock.grain && <span className="ml-2 text-sm font-normal text-muted">{t('sheets.grain')}</span>}
             </h3>
             {sheets.map((sheet) => (
@@ -451,7 +454,7 @@ export function Results() {
       const input: PdfInput = {
         fileName: `${fileBase}.pdf`,
         title: t('pdf.title', { model: tm(model.nameKey as 'sideboard') }),
-        subtitle: t('summaryLine', { parts: derived.parts.length, sheets: derived.sheetCount, used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) }),
+        subtitle: t('summaryLine', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) }),
         meta: [
           [ts('width'), f.length(config.width)],
           [ts('height'), f.length(config.height)],
@@ -473,7 +476,7 @@ export function Results() {
           items: derived.nest.sheets.map((sheet) => {
             const stock = derived.nest.stocks.find((s) => s.key === sheet.stockKey) as Stock;
             return {
-              caption: `${labels.stockName(stock)} · ${t('sheets.caption', { n: sheet.index + 1, used: f.percent(sheet.utilisation), parts: sheet.placements.length })}`,
+              caption: `${labels.stockName(stock)} · ${t('sheets.caption', { n: sheet.index + 1, used: f.percent(sheet.utilisation), parts: sheet.placements.length })}${sheet.fraction < 1 ? ` · ${t('sheets.half', { size: `${sheet.length} × ${sheet.width}` })}` : ''}`,
               svg: sheetSvg(sheet, stock, rowNoByPart, SHEET.trim),
             };
           }),
@@ -514,7 +517,7 @@ export function Results() {
           <div>
             <h2 className="text-xl font-semibold">{t('title')}</h2>
             <p className="text-sm text-muted" data-testid="results-summary">
-              {t('summaryLine', { parts: derived.parts.length, sheets: derived.sheetCount, used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) })}
+              {t('summaryLine', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) })}
             </p>
           </div>
           <button type="button" className={actionButton} onClick={() => setTab('settings')}>

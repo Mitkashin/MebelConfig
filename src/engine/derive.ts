@@ -107,24 +107,25 @@ export function buildPrice(parts: Part[], nested: NestResult, hardware: Hardware
   const sheetsOf = { board: 0, hdf: 0 };
   for (const stock of nested.stocks) {
     const sheets = nested.sheets.filter((s) => s.stockKey === stock.key);
-    const qty = sheets.length;
+    // A half sheet counts as half a sheet, for the board and for the cutting.
+    const qty = sheets.reduce((s, x) => s + x.fraction, 0);
     if (stock.material === 'board' || stock.material === 'hdf') sheetsOf[stock.material] += qty;
     const unitPrice = overrides.sheet?.[stock.key] ?? stock.price;
-    const used = sheets.reduce((s, x) => s + x.utilisation, 0) / Math.max(1, qty);
+    const used = sheets.reduce((s, x) => s + x.usedArea, 0) / (qty * stock.sheetLength * stock.sheetWidth);
     lines.push({
       key: `sheet:${stock.key}`,
       kind: 'sheet',
       qty,
       unit: 'sheet',
       unitPrice,
-      total: qty * unitPrice,
+      total: Math.round(qty * unitPrice),
       detail: { material: stock.material, thickness: stock.thickness, decor: stock.decor ?? '', utilisation: Math.round(used * 100) },
     });
   }
 
   // The supplier cuts per sheet bought.
   const boardCut = overrides.cuttingPerSheet ?? SERVICES.cuttingPerSheet.board;
-  if (sheetsOf.board > 0) lines.push({ key: 'cutting:board', kind: 'cutting', qty: sheetsOf.board, unit: 'sheet', unitPrice: boardCut, total: sheetsOf.board * boardCut, detail: { material: 'board' } });
+  if (sheetsOf.board > 0) lines.push({ key: 'cutting:board', kind: 'cutting', qty: sheetsOf.board, unit: 'sheet', unitPrice: boardCut, total: Math.round(sheetsOf.board * boardCut), detail: { material: 'board' } });
   if (sheetsOf.hdf > 0) lines.push({ key: 'cutting:hdf', kind: 'cutting', qty: sheetsOf.hdf, unit: 'sheet', unitPrice: SERVICES.cuttingPerSheet.hdf, total: sheetsOf.hdf * SERVICES.cuttingPerSheet.hdf, detail: { material: 'hdf' } });
 
   // Edge band: bought per decor with an allowance per edge; the gluing is charged on the edges themselves.
@@ -167,13 +168,34 @@ export function buildPrice(parts: Part[], nested: NestResult, hardware: Hardware
 }
 
 /** The single derivation chain. Everything the UI shows comes from one call. */
+/** Separator in the ids of the copies of a part when several identical pieces are ordered (`e0.sideL@1`). */
+export const COPY = '@';
+
+/** The parts of all ordered pieces: the first keeps its ids (the 3D view shows it), the others get `@1`, `@2`, … */
+export function orderedParts(parts: Part[], quantity: number): Part[] {
+  if (quantity <= 1) return parts;
+  return Array.from({ length: quantity }, (_, k) => (k === 0 ? parts : parts.map((x) => ({ ...x, id: `${x.id}${COPY}${k}` })))).flat();
+}
+
+/** Hardware for several identical pieces; HDF nails are recounted into packs. */
+function multiplyHardware(items: HardwareItem[], quantity: number): HardwareItem[] {
+  if (quantity <= 1) return items;
+  return items.map((item) => {
+    const detail = item.detail && 'count' in item.detail ? { ...item.detail, count: Number(item.detail.count) * quantity } : item.detail;
+    const qty = item.key === 'backNail' ? Math.ceil((Number(item.detail?.count ?? 0) * quantity) / NAILS_PER_PACK) : Math.round(item.qty * quantity * 10) / 10;
+    return { ...item, qty, ...(detail ? { detail } : {}) };
+  });
+}
+
 export function derive(config: Config, overrides: PriceOverrides = {}): Derived {
   const parts = buildParts(config);
   const handles = buildHandles(config, parts);
-  const cutList = buildCutList(parts);
-  const nested = nest(parts);
+  // Identical pieces are cut together, so their parts share the sheets.
+  const all = orderedParts(parts, config.quantity);
+  const cutList = buildCutList(all);
+  const nested = nest(all);
   const fittings = buildFittings(config, parts);
-  const hardware = buildHardware(config, parts, fittings);
-  const { price, bandingMeters } = buildPrice(parts, nested, hardware, overrides);
-  return { parts, handles, fittings, cutList, nest: nested, hardware, price, bandingMeters, sheetCount: nested.sheets.length };
+  const hardware = multiplyHardware(buildHardware(config, parts, fittings), config.quantity);
+  const { price, bandingMeters } = buildPrice(all, nested, hardware, overrides);
+  return { parts, handles, fittings, cutList, nest: nested, hardware, price, bandingMeters, sheetCount: nested.sheets.reduce((n, x) => n + x.fraction, 0) };
 }

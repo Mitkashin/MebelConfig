@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildParts, carcassWidthsFor } from '@/engine/build';
 import { cellCaps, removeCell, splitCell } from '@/engine/grid';
-import { DECORS, LEG_PRICES, nearestPrice, SERVICES, SHEET, SLIDE_PRICES } from '@/engine/catalog';
+import { DECORS, LEG_PRICES, NAILS_PER_PACK, nearestPrice, SERVICES, SHEET, SLIDE_PRICES } from '@/engine/catalog';
 import { buildCutList, cutListCsv, isGrained } from '@/engine/cutlist';
 import { derive } from '@/engine/derive';
 import { MODELS, requireModel } from '@/engine/models';
@@ -59,6 +59,7 @@ function randomConfig(seed: number): Config {
     legHeight: baseHeights(model, mount).length ? pick(baseHeights(model, mount)) : 0,
     plinthSetback: model.plinthSetbacks.length ? pick(model.plinthSetbacks) : 30,
     frontGrain: { doors: pick(['vertical', 'horizontal'] as const), drawers: pick(['vertical', 'horizontal'] as const) },
+    quantity: 1,
     elements: widths.map((w) => ({ ...template, width: w, rail: false, shelves: 0, cells: [], ownRows: false })),
   };
   const lim = limits(base, model);
@@ -194,7 +195,9 @@ describe('defaults', () => {
       ['back', 3, 632, 549, 3, 0, 0],
     ]);
     expect(d.parts).toHaveLength(25);
-    expect(d.sheetCount).toBe(3);
+    // Like the reference: three sheets laid out; the third is bought as a half (Soloprom sells halves).
+    expect(d.nest.sheets).toHaveLength(3);
+    expect(d.sheetCount).toBe(2.5);
     expect(d.bandingMeters).toBe(21.04);
     const qty = Object.fromEntries(d.hardware.map((h) => [h.key, h.qty]));
     expect(qty).toMatchObject({ hinge: 6, handle: 3, shelfPin: 12, wallBracket: 6, screw3516: 27, screw430: 27, screw450: 40, screwCap: 40, handleScrew: 7, wallPlug: 14 });
@@ -725,5 +728,75 @@ describe('chest of drawers depth', () => {
     expect(d.hardware.find((h) => h.key === 'drawerSlide')?.detail?.length).toBe(550);
     const side = d.parts.find((x) => x.id === 'e0.sideL')!;
     expect(side.size[2]).toBe(900 - 18 - 4 - 3);
+  });
+});
+
+describe('several identical pieces', () => {
+  const chest = (quantity: number): Config => ({ ...defaultConfig('drawer-sideboard-1'), bodyDecor: 'h1145-st10', frontDecor: 'h1145-st10', quantity });
+
+  it('cuts them together: never more board than ordering them one by one, usually less', () => {
+    const one = derive(chest(1));
+    const two = derive(chest(2));
+    expect(validate(chest(2))).toEqual([]);
+    expect(two.sheetCount).toBeLessThanOrEqual(2 * one.sheetCount);
+    // Every part of both pieces is on a sheet.
+    const placed = two.nest.sheets.reduce((n, sh) => n + sh.placements.length, 0);
+    expect(placed).toBe(two.parts.filter((x) => x.material !== 'glass').length * 2);
+    expect(two.nest.unplaced).toEqual([]);
+    // The cut list counts both pieces; the 3D view still shows one.
+    for (const row of two.cutList) {
+      const single = one.cutList.find((r) => r.key === row.key)!;
+      expect(row.qty, row.key).toBe(single.qty * 2);
+    }
+    expect(two.parts).toHaveLength(one.parts.length);
+  });
+
+  it('doubles the hardware and the banding, and recounts nails into packs', () => {
+    const one = derive(chest(1));
+    const three = derive(chest(3));
+    for (const item of one.hardware) {
+      const many = three.hardware.find((h) => h.key === item.key)!;
+      if (item.key === 'backNail') expect(many.qty).toBe(Math.ceil((Number(item.detail?.count) * 3) / NAILS_PER_PACK));
+      else expect(many.qty, item.key).toBeCloseTo(item.qty * 3, 5);
+    }
+    expect(three.bandingMeters).toBeCloseTo(one.bandingMeters * 3, 1);
+    expect(validate({ ...chest(1), quantity: 11 }).map((i) => i.path)).toContain('quantity');
+  });
+
+  it('buys the last sheet as a half when its parts fit, and charges half', () => {
+    for (const quantity of [1, 2, 3]) {
+      const d = derive(chest(quantity));
+      for (const sheet of d.nest.sheets) {
+        for (const pl of sheet.placements) {
+          expect(pl.x + pl.w).toBeLessThanOrEqual(sheet.length - SHEET.trim);
+          expect(pl.y + pl.h).toBeLessThanOrEqual(sheet.width - SHEET.trim);
+        }
+        const stock = d.nest.stocks.find((st) => st.key === sheet.stockKey)!;
+        expect([1, 0.5]).toContain(sheet.fraction);
+        if (sheet.fraction < 1) {
+          expect(stock.material).toBe('board');
+          expect(sheet.index).toBe(d.nest.sheets.filter((x) => x.stockKey === sheet.stockKey).length - 1);
+          expect(sheet.length * sheet.width).toBe(stock.sheetLength * stock.sheetWidth * sheet.fraction);
+        }
+      }
+      const line = d.price.lines.find((l) => l.key === 'sheet:board|18|h1145-st10')!;
+      const sheets = d.nest.sheets.filter((x) => x.stockKey === 'board|18|h1145-st10');
+      expect(line.qty).toBe(sheets.reduce((n, x) => n + x.fraction, 0));
+      expect(line.total).toBe(Math.round(line.qty * line.unitPrice));
+      expect(d.price.lines.find((l) => l.key === 'cutting:board')?.qty).toBe(line.qty);
+    }
+  });
+
+  it('a nightstand takes part of a board sheet; HDF stays a whole sheet', () => {
+    const d = derive({ ...defaultConfig('nightstand-1'), bodyDecor: 'u708-st9', frontDecor: 'u708-st9' });
+    expect(d.price.lines.find((l) => l.key === 'sheet:board|18|u708-st9')?.qty).toBeLessThan(1);
+    expect(d.price.lines.find((l) => l.key === 'sheet:hdf|3')?.qty).toBe(1);
+  });
+
+  it('the share link keeps the quantity; older links mean one piece', () => {
+    expect(decodeConfig(encodeConfig(chest(4)))?.quantity).toBe(4);
+    const older: Partial<Config> = defaultConfig('drawer-sideboard-1');
+    delete older.quantity;
+    expect(decodeConfig('3.' + Buffer.from(JSON.stringify(older)).toString('base64url'))?.quantity).toBe(1);
   });
 });

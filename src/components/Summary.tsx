@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { requireModel } from '@/engine/models';
+import { QUANTITY_MAX } from '@/engine/rules';
 import { useFormat } from '@/lib/format';
 import { useConfigurator } from '@/store/configurator';
 
@@ -14,6 +15,7 @@ export function Summary() {
   const derived = useConfigurator((s) => s.derived);
   const errors = useConfigurator((s) => s.errors);
   const setTab = useConfigurator((s) => s.setTab);
+  const patch = useConfigurator((s) => s.patch);
   const model = requireModel(config.model);
   const closed = model.layout === 'grid' ? config.elements.flatMap((e) => e.cells).filter((c) => c.front !== 'open').length : config.elements.filter((e) => e.front !== 'open').length;
   const blocked = Object.values(errors);
@@ -71,14 +73,33 @@ export function Summary() {
         ))}
       </ul>
       <div className="grid gap-2 rounded-xl bg-accent-soft p-3" aria-live="polite">
+        <div className="flex items-center justify-between gap-3" role="group" aria-label={t('quantity')} data-testid="quantity">
+          <span className="text-sm text-accent-strong">{t('quantity')}</span>
+          <div className="flex items-center gap-1">
+            <button type="button" className="grid size-8 place-items-center rounded-full border border-accent/40 bg-surface text-lg leading-none text-accent-strong disabled:opacity-40" aria-label={t('quantityLess')} disabled={config.quantity <= 1} onClick={() => patch({ quantity: config.quantity - 1 })}>
+              −
+            </button>
+            <output className="w-8 text-center text-lg font-semibold tabular-nums" data-testid="quantity-value">
+              {config.quantity}
+            </output>
+            <button type="button" className="grid size-8 place-items-center rounded-full border border-accent/40 bg-surface text-lg leading-none text-accent-strong disabled:opacity-40" aria-label={t('quantityMore')} disabled={config.quantity >= QUANTITY_MAX} onClick={() => patch({ quantity: config.quantity + 1 })}>
+              +
+            </button>
+          </div>
+        </div>
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm text-accent-strong">{t('livePrice')}</span>
+          <span className="text-sm text-accent-strong">{config.quantity > 1 ? t('livePriceAll', { count: config.quantity }) : t('livePrice')}</span>
           <span className="text-2xl font-semibold tabular-nums" data-testid="live-price">
             {f.money(derived.price.total)}
           </span>
         </div>
+        {config.quantity > 1 && (
+          <p className="text-sm text-accent-strong" data-testid="price-each">
+            {t('priceEach', { price: f.money(Math.round(derived.price.total / config.quantity)) })}
+          </p>
+        )}
         <p className="text-sm text-accent-strong" data-testid="live-sheets">
-          {t('liveSheets', { parts: derived.parts.length, sheets: derived.sheetCount })}
+          {t('liveSheets', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount })}
         </p>
       </div>
       <button

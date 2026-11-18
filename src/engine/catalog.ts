@@ -152,6 +152,9 @@ export const SHEET = {
   trim: 10,
 };
 
+/** Board is also sold as a half sheet, at half the price and half the cutting; HDF only whole. */
+export const SHEET_FRACTIONS = [0.5];
+
 /** Waste added to every banded edge (mm): the band is cut longer than the edge. */
 export const BANDING_ALLOWANCE = 30;
 

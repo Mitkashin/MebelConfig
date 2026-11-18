@@ -368,7 +368,12 @@
     "withDoubleDoors": "double doors",
     "withDoor": "door",
     "openFront": "open",
+    "quantity": "Identical pieces",
+    "quantityLess": "One piece fewer",
+    "quantityMore": "One piece more",
     "livePrice": "Indicative price",
+    "livePriceAll": "Indicative price for all {count}",
+    "priceEach": "{price} each. The parts of all pieces are cut together, so less board is wasted.",
     "liveSheets": "{parts, plural, one {# part} other {# parts}} · {sheets, plural, one {# sheet} other {# sheets}}",
     "generate": "Generate cut list",
     "fixFirst": "Fix these fields first:",
@@ -522,7 +527,8 @@
       "grain": "Grain runs along the sheet length (arrow); these parts are not rotated.",
       "caption": "Sheet {n}: {used} used, {parts, plural, one {# part} other {# parts}}",
       "aria": "Layout of sheet {n} with {parts, plural, one {# part} other {# parts}}",
-      "dims": "{w} × {h}"
+      "dims": "{w} × {h}",
+      "half": "half sheet, {size} mm"
     },
     "price": {
       "banding": "Edge banding, band and gluing (your price)",
@@ -534,7 +540,7 @@
       },
       "used": "{used} of the sheet area used",
       "total": "Total",
-      "waste": "Of the board cost, about {used} ends up in the piece and {waste} is offcuts. Whole sheets are charged.",
+      "waste": "Of the board cost, about {used} ends up in the piece and {waste} is offcuts. The last sheet is bought as a half when the parts fit.",
       "ownTitle": "Your own prices",
       "ownHelp": "Checked prices with a workshop? Enter them and recalculate.",
       "ownSheet": "Sheet price: {name}",

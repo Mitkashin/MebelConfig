@@ -34,8 +34,10 @@ All prices are Soloprom's (soloprom.com.mk), checked against the shop on
 | Not sold by Soloprom | Adhesive screw caps (1), handle screws (2), wall plugs (6), glass doors (9 500/m²): placeholders |
 | Saw kerf / edge trim | 4 mm / 10 mm per side (same as the reference) |
 
-Whole sheets are charged, although Soloprom also sells half and quarter
-sheets (price not listed). Prices exclude delivery and assembly; the UI says
+The last sheet of each board decor is bought as a half (1400 × 2070 or
+2800 × 1035) when its parts fit, at half the sheet price and half the
+cutting (Soloprom sells board as whole or half sheets; HDF only whole). Several identical pieces (1–10) are cut
+together, so their parts share the sheets. Prices exclude delivery and assembly; the UI says
 so.
 
 Edge band matching: 134 decors have a band with the same code, 19 a band in

@@ -272,6 +272,25 @@ test('chest of drawers: 90 cm deep; exploded view with see-through boards', asyn
   await expect(page.getByTestId('see-through')).toHaveCount(0);
 });
 
+test('chest of drawers: two identical pieces share the sheets', async ({ page }) => {
+  await page.goto('/en');
+  await page.getByTestId('model-drawer-sideboard-1').click();
+  await ready(page);
+  const price = async () => Number((await page.getByTestId('live-price').innerText()).replace(/[^0-9]/g, ''));
+  const one = await price();
+  const quantity = page.getByTestId('quantity');
+  await quantity.getByRole('button', { name: 'One piece more' }).click();
+  await expect(page.getByTestId('quantity-value')).toHaveText('2');
+  await expect(page.getByTestId('price-each')).toBeVisible();
+  const two = await price();
+  expect(two).toBeGreaterThan(one);
+  expect(two).toBeLessThan(2 * one);
+  await page.getByTestId('generate').click();
+  await expect(page.getByTestId('cut-list').locator('tr', { hasText: 'Drawer front' }).first()).toContainText('12');
+  await page.getByRole('tab', { name: 'Sheets' }).click();
+  await expect(page.getByTestId('sheet').first()).toBeVisible();
+});
+
 test('wardrobe: compartments with rails, glass doors, remove, split, turn and plinth', async ({ page }) => {
   await page.goto('/en/configurator/wardrobe-1');
   await ready(page);

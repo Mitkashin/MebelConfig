@@ -1,4 +1,4 @@
-import { getDecor, SHEET } from './catalog';
+import { getDecor, SHEET, SHEET_FRACTIONS } from './catalog';
 import { isGrained } from './cutlist';
 import type { NestResult, Part, Placement, Sheet, Stock } from './types';
 
@@ -134,37 +134,61 @@ export function nest(parts: Part[], kerf = SHEET.kerf, trim = SHEET.trim): NestR
   }
 
   const result: NestResult = { stocks: [], sheets: [], unplaced: [], cutLength: 0 };
-  for (const { stock, items } of byStock.values()) {
-    const length = stock.sheetLength - 2 * trim;
-    const width = stock.sheetWidth - 2 * trim;
+  const bestPack = (items: Item[], length: number, width: number) => {
     let best: ReturnType<typeof pack> | null = null;
     let bestScore = Infinity;
     for (const order of ORDERS) {
       const attempt = pack(items, length, width, kerf, order);
       const last = attempt.bins[attempt.bins.length - 1];
       const lastUsed = last ? last.placements.reduce((s, pl) => s + pl.w * pl.h, 0) / (length * width) : 0;
-      // Fewer sheets first; then the emptier last sheet, which leaves the most useful offcut.
+      // Fewer sheets first; then the emptier last sheet, which leaves the most useful offcut (or fits a half sheet).
       const score = attempt.unplaced.length * 1000 + attempt.bins.length + lastUsed;
       if (score < bestScore) {
         best = attempt;
         bestScore = score;
       }
     }
+    return best;
+  };
+  for (const { stock, items } of byStock.values()) {
+    const best = bestPack(items, stock.sheetLength - 2 * trim, stock.sheetWidth - 2 * trim);
     if (!best) continue;
     result.stocks.push(stock);
     result.unplaced.push(...best.unplaced);
-    best.bins.forEach((bin, index) => {
+    const pieces = best.bins.map((bin) => ({ bin, length: stock.sheetLength, width: stock.sheetWidth, fraction: 1 }));
+    // The last sheet may be bought as a half (board only) when its parts fit on one.
+    const last = pieces[pieces.length - 1];
+    if (last && stock.material === 'board') {
+      const ids = new Set(last.bin.placements.map((pl) => pl.partId));
+      const rest = items.filter((it) => ids.has(it.id));
+      // A half can be cut across the length or along it.
+      const sizes = SHEET_FRACTIONS.flatMap((fraction) => [
+        { fraction, length: stock.sheetLength * fraction, width: stock.sheetWidth },
+        { fraction, length: stock.sheetLength, width: stock.sheetWidth * fraction },
+      ]);
+      for (const size of sizes) {
+        const small = bestPack(rest, size.length - 2 * trim, size.width - 2 * trim);
+        if (small && small.unplaced.length === 0 && small.bins.length === 1) {
+          pieces[pieces.length - 1] = { bin: small.bins[0]!, ...size };
+          break;
+        }
+      }
+    }
+    pieces.forEach(({ bin, length, width, fraction }, index) => {
       const usedArea = bin.placements.reduce((s, pl) => s + pl.w * pl.h, 0);
       const sheet: Sheet = {
         stockKey: stock.key,
         index,
+        length,
+        width,
+        fraction,
         placements: bin.placements.map((pl) => ({ ...pl, x: pl.x + trim, y: pl.y + trim })),
         usedArea,
-        utilisation: usedArea / (stock.sheetLength * stock.sheetWidth),
+        utilisation: usedArea / (length * width),
       };
       result.sheets.push(sheet);
       // Trim cuts on all four sides, then the cuts between parts.
-      result.cutLength += 2 * (stock.sheetLength + stock.sheetWidth) + bin.cut;
+      result.cutLength += 2 * (length + width) + bin.cut;
     });
   }
   return result;

@@ -66,6 +66,7 @@ export function decodeConfig(value: string | null | undefined): Config | null {
       plinth: defaults.plinth,
       plinthSetback: defaults.plinthSetback,
       frontGrain: defaults.frontGrain,
+      quantity: 1,
       glassFrame: defaults.glassFrame,
       glassTint: defaults.glassTint,
     };

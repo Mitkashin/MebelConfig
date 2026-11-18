@@ -4,6 +4,9 @@ import { normaliseGrid, validateGrid } from './grid';
 import { getModel, type ModelDef, type ModelParams } from './models';
 import type { Config, ElementConfig, Issue, Notice } from './types';
 
+/** Most identical pieces in one order. */
+export const QUANTITY_MAX = 10;
+
 const elementSchema = z.object({
   width: z.number().int(),
   front: z.enum(['doors', 'open', 'drawers']),
@@ -50,6 +53,7 @@ export const configSchema = z.object({
   plinth: z.object({ front: z.boolean(), left: z.boolean(), right: z.boolean() }),
   plinthSetback: z.number().int().min(0).max(100),
   frontGrain: z.object({ doors: z.enum(['vertical', 'horizontal']), drawers: z.enum(['vertical', 'horizontal']) }),
+  quantity: z.number().int().min(1).max(QUANTITY_MAX),
   glassFrame: z.enum(['black', 'white']),
   glassTint: z.enum(['clear', 'light', 'dark']),
 });

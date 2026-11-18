@@ -269,7 +269,8 @@ export const useConfigurator = create<State>((set, get) => {
         if (key === 'doorsOpen' && value) return { doorsOpen: true, exploded: false };
         return { [key]: value } as Partial<State>;
       }),
-    select: (ids) => set({ selected: ids }),
+    // Copies of parts (several identical pieces) are not drawn in 3D; only the first piece is selectable.
+    select: (ids) => set({ selected: ids.filter((id) => !id.includes('@')) }),
     dismissNotices: () => set({ notices: [] }),
   };
 });
