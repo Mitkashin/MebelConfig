@@ -6,6 +6,7 @@ import { Component, createContext, Fragment, useContext, useEffect, useMemo, use
 import * as THREE from 'three';
 import { decorFinish, getDecor, HANDLE_FINISHES, type DecorFinish } from '@/engine/catalog';
 import type { Config, Fitting, HandlePlacement, Part, Vec3 } from '@/engine/types';
+import { explodeOffset } from '@/lib/explode';
 import { rowColor } from '@/lib/format';
 import type { Backdrop, WallColor } from '@/store/scene';
 import { Stage, type Quality } from './Stage';
@@ -185,38 +186,6 @@ interface MoverSpec {
   offset: Vec3;
   pivot: Vec3;
   rotation: [number, number];
-}
-
-function explodeOffset(part: Part, count: number, cellsInColumn: number): Vec3 {
-  const spread = part.element === null ? 0 : (part.element - (count - 1) / 2) * 170;
-  if (part.cell !== undefined) {
-    // Wardrobe compartments also move apart vertically, so stacked carcasses separate.
-    const lift = (cellsInColumn - 1 - part.cell) * 150;
-    const role = part.role === 'top' ? [0, 60, 0] : part.role === 'bottom' ? [0, -60, 0] : part.role === 'side' ? [part.id.endsWith('L') ? -75 : 75, 0, 0] : part.role === 'shelf' ? [0, 0, 160] : part.role === 'back' ? [0, 0, -200] : [0, 0, 320];
-    return [spread + (role[0] as number), lift + (role[1] as number), role[2] as number];
-  }
-  switch (part.role) {
-    case 'top':
-      return [0, part.id === 'top' ? 280 : 160, 0];
-    case 'bottom':
-      return [spread, -150, 0];
-    case 'side':
-      return [spread + (part.id.endsWith('L') ? -75 : 75), 0, 0];
-    case 'rail':
-      return [spread, 80, part.id.endsWith('F') ? 70 : -70];
-    case 'shelf':
-      return [spread, 0, 180];
-    case 'back':
-      return [spread, 0, -220];
-    case 'plinth': {
-      // The base drops below the carcass and opens out: front forward, back backward, ends outward.
-      const side = (part.id.split('.')[1] ?? '').replace(/\d+$/, '');
-      const [dx, dz] = side === 'front' ? [0, 160] : side === 'back' ? [0, -160] : side === 'left' ? [-160, 0] : side === 'right' ? [160, 0] : [0, 0];
-      return [dx, -280, dz];
-    }
-    default:
-      return [spread, 0, 340];
-  }
 }
 
 function buildMovers(p: Pick<SceneProps, 'parts' | 'handles' | 'config' | 'doorsOpen' | 'toggled' | 'exploded'>): MoverSpec[] {

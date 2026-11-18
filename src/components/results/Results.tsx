@@ -10,7 +10,9 @@ import { encodeConfig } from '@/engine/share';
 import type { CutRow, HardwareItem, PriceLine, Sheet, Stock } from '@/engine/types';
 import { rowColor, useFormat } from '@/lib/format';
 import { formatDate } from '@/lib/numbers';
-import { createPdfBlob, saveBlob, sheetSvg, type PdfInput } from '@/lib/pdf';
+import { createPdfBlob, printHtml, saveBlob, sheetSvg, type PdfInput } from '@/lib/pdf';
+import { elevationsSvg, explodedSvg, obliqueSvg } from '@/lib/drawings';
+import { explodedOffsets } from '@/lib/explode';
 import { useConfigurator } from '@/store/configurator';
 import { cx } from '../ui/controls';
 
@@ -446,12 +448,14 @@ export function Results() {
     return cutListCsv(derived.cutList, { header, role: (r) => tp(r), elements: (r) => labels.elements(r), material: (r) => f.material(r), yes: t('parts.csv.yes'), no: t('parts.csv.no') }, locale === 'mk' ? ';' : ',');
   };
 
-  const pdf = async () => {
-    setBusy(true);
-    try {
+  /** Everything the PDF and the printed document show, in their order. */
+  const documentInput = (): PdfInput => {
       const rowNoByPart: Record<string, number> = {};
       for (const row of derived.cutList) for (const id of row.partIds) rowNoByPart[id] = row.no;
-      const input: PdfInput = {
+      const base = config.mount === 'legs' || config.mount === 'plinth' ? config.legHeight : 0;
+      const drawingLabels = { width: f.length(config.width), height: f.length(config.height), depth: f.length(config.depth), elements: config.elements.map((e) => f.length(e.width)), base: base > 0 ? f.length(base) : null };
+      const piece = { parts: derived.parts, handles: derived.handles, fittings: derived.fittings, width: config.width, height: config.height, depth: config.depth };
+      return {
         fileName: `${fileBase}.pdf`,
         title: t('pdf.title', { model: tm(model.nameKey as 'sideboard') }),
         subtitle: t('summaryLine', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, n: f.number(derived.sheetCount, { max: 1 }), used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) }),
@@ -463,7 +467,10 @@ export function Results() {
           [t('pdf.body'), f.decorName(config.bodyDecor)],
           [t('pdf.front'), f.decorName(config.frontDecor)],
           [t('pdf.date'), formatDate(new Date(), locale)],
+          ...(config.quantity > 1 ? [[t('pdf.quantity'), String(config.quantity)] as [string, string]] : []),
         ],
+        unit: { title: t('pdf.unit'), svgs: [obliqueSvg(piece, drawingLabels), elevationsSvg(piece, drawingLabels)] },
+        exploded: { title: t('pdf.exploded'), note: t('pdf.explodedNote'), svg: explodedSvg({ parts: derived.parts, offsets: explodedOffsets(derived.parts, config), depth: config.depth, rowNoByPart }) },
         cutList: {
           title: t('tabs.parts'),
           head: (['no', 'part', 'elements', 'qty', 'length', 'width', 'thickness', 'material', 'banding', 'note'] as const).map((c) => t(`parts.cols.${c}`)),
@@ -497,11 +504,28 @@ export function Results() {
         },
         link: { label: t('pdf.link'), url: shareLink() },
       };
-      // Columns: stretch the second one (name) in every table.
+  };
+
+  const pdf = async () => {
+    setBusy(true);
+    try {
+      const input = documentInput();
       saveBlob(await createPdfBlob(input), input.fileName);
     } finally {
       setBusy(false);
     }
+  };
+
+  /** Print a document made for paper, in a new window, rather than this page. */
+  const print = () => {
+    const w = window.open('', '_blank');
+    if (!w) return window.print();
+    w.document.open();
+    w.document.write(printHtml(documentInput(), locale));
+    w.document.close();
+    w.focus();
+    // Let the drawings lay out before the print dialog opens.
+    setTimeout(() => w.print(), 300);
   };
 
   const copyTable = async () => {
@@ -534,7 +558,7 @@ export function Results() {
           <button type="button" className={actionButton} onClick={copyTable}>
             {copied === 'table' ? t('export.copied') : t('export.copyTable')}
           </button>
-          <button type="button" className={actionButton} onClick={() => window.print()}>
+          <button type="button" className={actionButton} onClick={print} data-testid="print">
             {t('export.print')}
           </button>
           <button

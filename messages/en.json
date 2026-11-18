@@ -580,7 +580,11 @@
       "body": "Body decor",
       "front": "Front decor",
       "date": "Date",
-      "link": "Open this design again:"
+      "link": "Open this design again:",
+      "unit": "The piece and its sizes",
+      "exploded": "Exploded view with part numbers",
+      "explodedNote": "Each part is drawn in the colour of its row in the cut list and carries that row's number.",
+      "quantity": "Identical pieces"
     }
   },
   "brands": {
