@@ -45,6 +45,8 @@ export interface SceneProps {
   seeThrough: number | null;
   /** Show each part's cut-list number on it (exploded view, switched on by the customer). */
   partLabels: boolean;
+  /** Colour each part in its cut-list row colour (part numbers on, see-through at its most). */
+  rowColours: boolean;
 }
 
 /** Glass door look, passed down rather than through every part. */
@@ -325,7 +327,7 @@ function glassMaterial(tint: string): THREE.MeshPhysicalMaterial {
 }
 
 /** Glass door: a tinted pane in a 20 mm aluminium frame. */
-function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: string | null; seeThrough?: boolean; onSelect: (id: string) => void }) {
+function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: string | null; seeThrough?: boolean; tint?: string | null; onSelect: (id: string) => void }) {
   const tint = useContext(GlassContext);
   const [x, y, z] = part.position;
   const [sx, sy, sz] = part.size;
@@ -353,16 +355,17 @@ function GlassDoor({ part, highlight, onSelect }: { part: Part; highlight: strin
   );
 }
 
-function PartMesh(props: { part: Part; highlight: string | null; simple: boolean; seeThrough: boolean; onSelect: (id: string) => void }) {
+function PartMesh(props: { part: Part; highlight: string | null; simple: boolean; seeThrough: boolean; tint: string | null; onSelect: (id: string) => void }) {
   return props.part.material === 'glass' ? <GlassDoor {...props} /> : <BoardMesh {...props} />;
 }
 
-function BoardMesh({ part, highlight, simple, seeThrough, onSelect }: { part: Part; highlight: string | null; simple: boolean; seeThrough: boolean; onSelect: (id: string) => void }) {
+function BoardMesh({ part, highlight, simple, seeThrough, tint, onSelect }: { part: Part; highlight: string | null; simple: boolean; seeThrough: boolean; tint: string | null; onSelect: (id: string) => void }) {
   const invalidate = useThree((st) => st.invalidate);
   const decor = part.decor ? getDecor(part.decor) : undefined;
   const color = part.material === 'hdf' ? HDF_COLOR : (decor?.color ?? '#cccccc');
   const finish = part.material === 'hdf' ? HDF_FINISH : decorFinish(decor);
-  const material = partMaterial(color, part.material === 'hdf' ? null : (decor?.image ?? null), finish, highlight, simple, invalidate, seeThrough);
+  // Row colours: a plain fill in the part's cut-list colour instead of the decor photo.
+  const material = tint ? partMaterial(tint, null, finish, highlight, simple, invalidate, seeThrough) : partMaterial(color, part.material === 'hdf' ? null : (decor?.image ?? null), finish, highlight, simple, invalidate, seeThrough);
   const tile = decor?.tile ?? 600;
   const geometry = useMemo(() => partGeometry(part, tile), [part, tile]);
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -392,7 +395,7 @@ function BoardMesh({ part, highlight, simple, seeThrough, onSelect }: { part: Pa
       }}
     >
       {/* See-through boards keep stronger outlines, so their shape still reads. */}
-      <Edges threshold={15} color={highlight ?? (hover ? HOVER_COLOR : '#1b2422')} transparent opacity={highlight ? 0.9 : hover ? 0.85 : seeThrough ? 0.45 : 0.07} />
+      <Edges threshold={15} color={highlight ?? (hover ? HOVER_COLOR : (tint ?? '#1b2422'))} transparent opacity={highlight ? 0.9 : hover ? 0.85 : tint ? 0.95 : seeThrough ? 0.45 : 0.07} />
     </mesh>
   );
 }
@@ -827,7 +830,7 @@ export default function Scene(props: SceneProps & { fallback: ReactNode }) {
                   const no = rowNoByPart[part.id];
                   return (
                     <Fragment key={part.id}>
-                      <PartMesh part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} simple={tier === 'low'} seeThrough={props.seeThrough !== null} onSelect={onSelect} />
+                      <PartMesh part={part} highlight={selected.includes(part.id) && no ? rowColor(no) : null} simple={tier === 'low'} seeThrough={props.seeThrough !== null} tint={props.rowColours && no ? rowColor(no) : null} onSelect={onSelect} />
                       {props.partLabels && no ? <PartLabel part={part} no={no} /> : null}
                     </Fragment>
                   );

@@ -272,6 +272,10 @@ test('chest of drawers: 90 cm deep; exploded view with see-through boards', asyn
   await expect(page.getByTestId('part-label')).toHaveCount(0);
   await panel.getByRole('switch', { name: 'Part numbers' }).click();
   await expect(page.getByTestId('part-label').first()).toBeVisible();
+  // With the numbers on and the boards at their most see-through, parts take their row colour.
+  await expect(page.getByTestId('viewer')).toHaveAttribute('data-row-colours', '0');
+  await slider.fill('90');
+  await expect(page.getByTestId('viewer')).toHaveAttribute('data-row-colours', '1');
   expect(await page.getByTestId('part-label').count()).toBe(Number(await page.getByTestId('viewer').getAttribute('data-part-count')));
   await page.getByTestId('toggle-exploded').click();
   await expect(page.getByTestId('see-through')).toHaveCount(0);

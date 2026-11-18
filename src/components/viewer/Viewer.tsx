@@ -175,6 +175,7 @@ export function Viewer() {
       data-fitting-count={derived.fittings.length}
       data-doors-open={doorsOpen ? '1' : '0'}
       data-exploded={exploded ? '1' : '0'}
+      data-row-colours={exploded && partLabels && seeThrough && opacity <= 0.1 + 1e-6 ? '1' : '0'}
       data-selected={selected.join(',')}
       data-backdrop={backdrop}
     >
@@ -206,6 +207,7 @@ export function Viewer() {
         captureRef={captureRef}
         seeThrough={exploded && seeThrough ? opacity : null}
         partLabels={exploded && partLabels}
+        rowColours={exploded && partLabels && seeThrough && opacity <= 0.1 + 1e-6}
         fallback={<Placeholder text={t('unsupported')} />}
       />
       <div className="no-print absolute right-2 bottom-2 left-2 z-10 flex gap-1.5 overflow-x-auto sm:top-3 sm:right-3 sm:bottom-auto sm:left-3 sm:flex-wrap sm:justify-end sm:gap-2 sm:overflow-visible">
