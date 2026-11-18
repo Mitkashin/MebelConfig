@@ -374,7 +374,7 @@
     "livePrice": "Ориентациска цена",
     "livePriceAll": "Ориентациска цена за сите {count}",
     "priceEach": "{price} по парче. Деловите на сите парчиња се кројат заедно, па табли се трошат помалку.",
-    "liveSheets": "{parts, plural, one {# дел} other {# делови}} · {sheets, plural, one {# табла} other {# табли}}",
+    "liveSheets": "{parts, plural, one {# дел} other {# делови}} · {sheets, plural, one {{n} табла} other {{n} табли}}",
     "generate": "Генерирај листа за кроење",
     "fixFirst": "Прво исправете ги овие полиња:",
     "generateHelp": "Листата за кроење, распоредот на табли и цената ги следат тековните поставки и се менуваат заедно со нив.",
@@ -465,11 +465,11 @@
   },
   "results": {
     "title": "Резултати",
-    "summaryLine": "{parts, plural, one {# дел} other {# делови}} · {sheets, plural, one {# табла} other {# табли}} · искористени {used} од таблите · околу {price}",
+    "summaryLine": "{parts, plural, one {# дел} other {# делови}} · {sheets, plural, one {{n} табла} other {{n} табли}} · искористени {used} од таблите · околу {price}",
     "backToSettings": "Назад кон поставките",
     "stockName": "{name}, {thickness}",
     "units": {
-      "sheet": "{count, plural, one {# табла} other {# табли}}",
+      "sheet": "{count, plural, one {{n} табла} other {{n} табли}}",
       "pcs": "{count} парч.",
       "pair": "{count, plural, one {# пар} other {# пара}}",
       "m": "{count} m"
@@ -523,7 +523,7 @@
     },
     "sheets": {
       "note": "Распоред за форматна пила: секој рез оди од раб до раб. Ширина на резот {kerf}, од секој раб на таблата се отсекува {trim}. Броевите одговараат на листата за кроење.",
-      "stock": "{name} — {count, plural, one {# табла} other {# табли}} од {size} mm",
+      "stock": "{name} — {count, plural, one {{n} табла} other {{n} табли}} од {size} mm",
       "grain": "Шарата е по должината на таблата (стрелка); овие делови не се вртат.",
       "caption": "Табла {n}: искористено {used}, {parts, plural, one {# дел} other {# делови}}",
       "aria": "Распоред на табла {n} со {parts, plural, one {# дел} other {# делови}}",

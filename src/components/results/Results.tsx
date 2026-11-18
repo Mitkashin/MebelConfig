@@ -50,7 +50,7 @@ function useLabels() {
     if (key === 'hangingRail' && item.detail) return thw('hangingRailDetail', { count: Number(item.detail.count) });
     return thw(`items.${key}` as 'items.hinge');
   };
-  const unit = (u: PriceLine['unit'], qty: number) => (u === 'm' ? f.meters(qty) : t(`units.${u}`, { count: qty }));
+  const unit = (u: PriceLine['unit'], qty: number) => (u === 'm' ? f.meters(qty) : t(`units.${u}`, { count: qty, n: f.number(qty, { max: 1 }) }));
   const stockName = (stock: Pick<Stock, 'material' | 'decor' | 'thickness'>) => t('stockName', { name: f.material(stock), thickness: f.mm(stock.thickness) });
   const lineName = (line: PriceLine) => {
     if (line.kind === 'sheet') return stockName({ material: line.detail?.material === 'hdf' ? 'hdf' : 'board', decor: String(line.detail?.decor ?? '') || null, thickness: Number(line.detail?.thickness) });
@@ -224,7 +224,7 @@ function Sheets() {
         return (
           <section key={stock.key} className="grid gap-3">
             <h3 className="text-base font-semibold">
-              {t('sheets.stock', { name: stockName(stock), count: sheets.reduce((n, x) => n + x.fraction, 0), size: `${stock.sheetLength} × ${stock.sheetWidth}` })}
+              {t('sheets.stock', { name: stockName(stock), count: sheets.reduce((n, x) => n + x.fraction, 0), n: f.number(sheets.reduce((n, x) => n + x.fraction, 0), { max: 1 }), size: `${stock.sheetLength} × ${stock.sheetWidth}` })}
               {stock.grain && <span className="ml-2 text-sm font-normal text-muted">{t('sheets.grain')}</span>}
             </h3>
             {sheets.map((sheet) => (
@@ -454,7 +454,7 @@ export function Results() {
       const input: PdfInput = {
         fileName: `${fileBase}.pdf`,
         title: t('pdf.title', { model: tm(model.nameKey as 'sideboard') }),
-        subtitle: t('summaryLine', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) }),
+        subtitle: t('summaryLine', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, n: f.number(derived.sheetCount, { max: 1 }), used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) }),
         meta: [
           [ts('width'), f.length(config.width)],
           [ts('height'), f.length(config.height)],
@@ -517,7 +517,7 @@ export function Results() {
           <div>
             <h2 className="text-xl font-semibold">{t('title')}</h2>
             <p className="text-sm text-muted" data-testid="results-summary">
-              {t('summaryLine', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) })}
+              {t('summaryLine', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, n: f.number(derived.sheetCount, { max: 1 }), used: f.percent(area / Math.max(total, 1)), price: f.money(derived.price.total) })}
             </p>
           </div>
           <button type="button" className={actionButton} onClick={() => setTab('settings')}>

@@ -99,7 +99,7 @@ export function Summary() {
           </p>
         )}
         <p className="text-sm text-accent-strong" data-testid="live-sheets">
-          {t('liveSheets', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount })}
+          {t('liveSheets', { parts: derived.parts.length * config.quantity, sheets: derived.sheetCount, n: f.number(derived.sheetCount, { max: 1 }) })}
         </p>
       </div>
       <button

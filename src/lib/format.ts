@@ -110,7 +110,7 @@ export function useFormat() {
   );
 
   return useMemo(
-    () => ({ unit, length, lengthValue, mm, meters, money, percent, count, decorName, decorShort, material, issueText }),
-    [unit, length, lengthValue, mm, meters, money, percent, count, decorName, decorShort, material, issueText],
+    () => ({ unit, length, lengthValue, mm, meters, money, percent, count, decorName, decorShort, material, issueText, number }),
+    [unit, length, lengthValue, mm, meters, money, percent, count, decorName, decorShort, material, issueText, number],
   );
 }
